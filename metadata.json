@@ -1,0 +1,6 @@
+{
+  "name": "Job Application Tracker",
+  "description": "An application that scans received emails from job applications and automatically updates statuses and application records in a Google Sheet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

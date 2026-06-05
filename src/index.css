@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg: #0B0F19;
+  --sidebar: #111827;
+  --primary: #3B82F6;
+  --text-main: #F3F4F6;
+  --text-muted: #9CA3AF;
+  --border: #1F2937;
+}
+
+.dark {
+  --bg: #0B0F19;
+  --sidebar: #111827;
+  --primary: #3B82F6;
+  --text-main: #F3F4F6;
+  --text-muted: #9CA3AF;
+  --border: #1F2937;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Custom design components matching the mockup's exact appearance */
+.professional-card {
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.professional-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.professional-badge-success {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+.dark .professional-badge-success {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34D399;
+}
+
+.professional-badge-blue {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.dark .professional-badge-blue {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60A5FA;
+}
+
+.professional-badge-gray {
+  background: #F1F5F9;
+  color: #475569;
+}
+
+.dark .professional-badge-gray {
+  background: rgba(156, 163, 175, 0.2);
+  color: #D1D5DB;
+}
+
+.professional-badge-amber {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.dark .professional-badge-amber {
+  background: rgba(245, 158, 11, 0.2);
+  color: #FBBF24;
+}
+
+.professional-table-header {
+  background: #F1F5F9;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dark .professional-table-header {
+  background: #1F2937;
+}
+
+/* Scrollbar tuning */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4B5563;
+}
