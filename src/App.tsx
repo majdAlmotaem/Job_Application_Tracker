@@ -174,6 +174,9 @@ export default function App() {
   // Keep track of which email is being individually synced or status updated
   const [syncingEmailId, setSyncingEmailId] = useState<string | null>(null);
   const [updatingRowId, setUpdatingRowId] = useState<string | null>(null);
+  // Inline cell editing state: { id, field }
+  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
+  const [editingValue, setEditingValue] = useState<string>("");
 
   // Initialize Auth state
   useEffect(() => {
@@ -882,6 +885,41 @@ export default function App() {
     }
   };
 
+  // Inline editing helpers
+  const startEditing = (id: string, field: string, initialValue?: string) => {
+    setEditingCell({ id, field });
+    setEditingValue(initialValue ?? "");
+  };
+
+  const cancelEditing = () => {
+    setEditingCell(null);
+    setEditingValue("");
+  };
+
+  const saveEditing = async (id: string, field: string) => {
+    const newValue = editingValue;
+    try {
+      if (token && spreadsheetId) {
+        setUpdatingRowId(id);
+        await updateJobApplicationRow(token, spreadsheetId, id, { [field]: newValue });
+        triggerToast("success", "Änderung gespeichert.");
+        await loadApplications();
+      } else {
+        const updated = applications.map(app => app.id === id ? { ...app, [field]: newValue } : app);
+        setApplications(updated);
+        localStorage.setItem("offline_applications", JSON.stringify(updated));
+        triggerToast("success", "Änderung lokal gespeichert.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      triggerToast("error", `Fehler beim Speichern: ${err.message || err}`);
+    } finally {
+      setUpdatingRowId(null);
+      setEditingCell(null);
+      setEditingValue("");
+    }
+  };
+
   // Metrics indicators computed stats
   const metrics = {
     total: applications.length,
@@ -1495,7 +1533,7 @@ export default function App() {
                             neueBewerbungen.map((update, idx) => {
                               const dupMatch = getCompanyMatch(update.company);
                               return (
-                                <div key={update.emailId || `neue-${idx}`} className="border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-[#111827] text-left">
+                                <div key={update.emailId || `neue-${idx}`} className="border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-4 bg-[#F8FAFC] dark:bg-slate-900 text-left">
                                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
                                     <div>
                                       <div className="flex items-center gap-2 flex-wrap">
@@ -1522,8 +1560,18 @@ export default function App() {
                                         <span className="text-[#059669] dark:text-[#34D399] px-2.5 py-1 text-xs font-semibold rounded bg-[#DCFCE7] dark:bg-emerald-950/40 flex items-center gap-1">
                                           <CheckCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-450" /> Übernommen
                                         </span>
-                                      ) : (
+                                        ) : (
                                         <>
+                                            <a
+                                              href={`https://mail.google.com/mail/u/0/#all/${update.emailId}`}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-[10px] text-[#2563EB] hover:underline flex items-center gap-1 px-2 py-1"
+                                            >
+                                              <Mail className="h-3.5 w-3.5" />
+                                              Email öffnen
+                                            </a>
+                                            <div className="w-px h-4 bg-[#E2E8F0] dark:bg-slate-800" />
                                           <button
                                             onClick={() => handleRefuseEmailUpdate(update.emailId)}
                                             disabled={syncingEmailId === update.emailId}
@@ -1558,7 +1606,7 @@ export default function App() {
                                     </div>
                                   )}
 
-                                  <div className="bg-white dark:bg-slate-950 rounded-lg p-3 text-xs text-[#1E293B] dark:text-slate-200 space-y-1.5 border border-[#E2E8F0] dark:border-slate-800">
+                                  <div className="bg-white dark:bg-slate-950 rounded-lg p-3 text-xs text-[#1E293B] dark:text-slate-200 space-y-1.5 border border-[#E2E8F0] dark:border-slate-800 shadow-sm">
                                     <div>
                                       <span className="font-bold text-[#64748B] dark:text-slate-400">Betreff:</span> <span className="font-medium">{update.subject}</span>
                                     </div>
@@ -1623,7 +1671,7 @@ export default function App() {
                             statusAenderungen.map((update, idx) => {
                               const dupMatch = getCompanyMatch(update.company);
                               return (
-                                <div key={update.emailId || `status-${idx}`} className="border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-[#111827] text-left">
+                                <div key={update.emailId || `status-${idx}`} className="border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-4 bg-[#F8FAFC] dark:bg-slate-900 text-left">
                                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
                                     <div>
                                       <div className="flex items-center gap-2 flex-wrap">
@@ -1650,8 +1698,18 @@ export default function App() {
                                         <span className="text-[#059669] dark:text-[#34D399] px-2.5 py-1 text-xs font-semibold rounded bg-[#DCFCE7] dark:bg-emerald-950/40 flex items-center gap-1">
                                           <CheckCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-450" /> Übernommen
                                         </span>
-                                      ) : (
+                                        ) : (
                                         <>
+                                            <a
+                                              href={`https://mail.google.com/mail/u/0/#all/${update.emailId}`}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-[10px] text-[#2563EB] hover:underline flex items-center gap-1 px-2 py-1"
+                                            >
+                                              <Mail className="h-3.5 w-3.5" />
+                                              Email öffnen
+                                            </a>
+                                            <div className="w-px h-4 bg-[#E2E8F0] dark:bg-slate-800" />
                                           <button
                                             onClick={() => handleRefuseEmailUpdate(update.emailId)}
                                             disabled={syncingEmailId === update.emailId}
@@ -1686,7 +1744,7 @@ export default function App() {
                                     </div>
                                   )}
 
-                                  <div className="bg-slate-50 dark:bg-slate-950 rounded-lg p-3 text-xs text-[#1E293B] dark:text-slate-200 space-y-1.5 border border-[#E2E8F0] dark:border-slate-800">
+                                  <div className="bg-white dark:bg-slate-950 rounded-lg p-3 text-xs text-[#1E293B] dark:text-slate-200 space-y-1.5 border border-[#E2E8F0] dark:border-slate-800 shadow-sm">
                                     <div>
                                       <span className="font-bold text-[#64748B] dark:text-slate-400">Betreff:</span> <span className="font-medium">{update.subject}</span>
                                     </div>
@@ -1904,10 +1962,48 @@ export default function App() {
                   </thead>
                   <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800/60">
                     {filteredAndSortedApplications.map((app) => (
-                      <tr key={app.id} className="hover:bg-[#F8FAFC]/55 dark:hover:bg-slate-850/40 bg-white dark:bg-[#111827] transition-colors">
+                      <tr key={app.id} className="bg-white dark:bg-[#111827] transition-colors">
                         <td className="p-3.5 text-center font-mono text-[10px] text-[#64748B] dark:text-slate-400 font-bold bg-[#F8FAFC]/50 dark:bg-slate-900/40 border-r border-[#E2E8F0] dark:border-slate-800">{app.id}</td>
-                        <td className="p-3.5 font-bold text-[#1E293B] dark:text-slate-100">{app.company}</td>
-                        <td className="p-3.5 font-medium text-[#64748B] dark:text-slate-300">{app.role}</td>
+                        <td
+                          className="p-3.5 font-bold text-[#1E293B] dark:text-slate-100 cursor-default"
+                          onDoubleClick={() => startEditing(app.id, "company", app.company)}
+                        >
+                          {editingCell?.id === app.id && editingCell.field === "company" ? (
+                            <input
+                              autoFocus
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={() => saveEditing(app.id, "company")}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveEditing(app.id, "company");
+                                if (e.key === "Escape") cancelEditing();
+                              }}
+                              className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                            />
+                          ) : (
+                            app.company
+                          )}
+                        </td>
+                        <td
+                          className="p-3.5 font-medium text-[#64748B] dark:text-slate-300 cursor-default"
+                          onDoubleClick={() => startEditing(app.id, "role", app.role)}
+                        >
+                          {editingCell?.id === app.id && editingCell.field === "role" ? (
+                            <input
+                              autoFocus
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={() => saveEditing(app.id, "role")}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveEditing(app.id, "role");
+                                if (e.key === "Escape") cancelEditing();
+                              }}
+                              className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                            />
+                          ) : (
+                            app.role
+                          )}
+                        </td>
                         <td className="p-3.5">
                           {updatingRowId === app.id ? (
                             <div className="flex items-center gap-1 font-semibold text-slate-400 py-1">
@@ -1916,8 +2012,13 @@ export default function App() {
                           ) : (
                             <div className="relative inline-block w-full text-[#1E293B] dark:text-slate-200">
                               <select
+                                id={`status-select-${app.id}`}
                                 value={app.status || "Applied"}
                                 onChange={(e) => handleUpdateStatus(app.id, e.target.value as JobApplication["status"])}
+                                onDoubleClick={() => {
+                                  const el = document.getElementById(`status-select-${app.id}`) as HTMLSelectElement | null;
+                                  if (el) el.focus();
+                                }}
                                 className={`w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs font-semibold focus:outline-none cursor-pointer text-slate-800 dark:text-slate-200 ${getStatusColorClass(app.status)}`}
                               >
                                 <option value="Applied" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Applied</option>
@@ -1928,9 +2029,66 @@ export default function App() {
                             </div>
                           )}
                         </td>
-                        <td className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium">{app.date}</td>
-                        <td className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium">{app.location || "N/A"}</td>
-                        <td className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium">{app.anstellungsart || "N/A"}</td>
+                        <td
+                          className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default"
+                          onDoubleClick={() => startEditing(app.id, "date", app.date || "")}
+                        >
+                          {editingCell?.id === app.id && editingCell.field === "date" ? (
+                            <input
+                              autoFocus
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={() => saveEditing(app.id, "date")}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveEditing(app.id, "date");
+                                if (e.key === "Escape") cancelEditing();
+                              }}
+                              className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                            />
+                          ) : (
+                            app.date
+                          )}
+                        </td>
+                        <td
+                          className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default"
+                          onDoubleClick={() => startEditing(app.id, "location", app.location || "")}
+                        >
+                          {editingCell?.id === app.id && editingCell.field === "location" ? (
+                            <input
+                              autoFocus
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={() => saveEditing(app.id, "location")}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveEditing(app.id, "location");
+                                if (e.key === "Escape") cancelEditing();
+                              }}
+                              className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                            />
+                          ) : (
+                            app.location || "N/A"
+                          )}
+                        </td>
+                        <td
+                          className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default"
+                          onDoubleClick={() => startEditing(app.id, "anstellungsart", app.anstellungsart || "")}
+                        >
+                          {editingCell?.id === app.id && editingCell.field === "anstellungsart" ? (
+                            <input
+                              autoFocus
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={() => saveEditing(app.id, "anstellungsart")}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveEditing(app.id, "anstellungsart");
+                                if (e.key === "Escape") cancelEditing();
+                              }}
+                              className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                            />
+                          ) : (
+                            app.anstellungsart || "N/A"
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
