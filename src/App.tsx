@@ -898,11 +898,13 @@ export default function App() {
       case "Interviewing":
         return "bg-violet-50 dark:bg-violet-950/50 text-violet-700 dark:text-violet-350 border-violet-200/80 dark:border-violet-900/50";
       case "Rejected":
-        return "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200/80 dark:border-rose-900/50";
+        return "bg-red-50 dark:bg-red-900/60 text-red-700 dark:text-red-300 border-red-200/80 dark:border-red-800/50";
       case "Offer":
-        return "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-900/50";
+        // Offer is treated as an accepted/positive state with a distinct green
+        return "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-900/50";
       case "Received":
-        return "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-900/50";
+        // Received kept separate (teal) to differ from Offer
+        return "bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border-teal-200/80 dark:border-teal-900/50";
       default:
         return "bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800";
     }
