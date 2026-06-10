@@ -1,13 +1,12 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
-import firebaseConfig from '../firebase-applet-config.json';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/gmail.readonly');
-provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;
@@ -58,9 +57,4 @@ export const getAccessToken = async (): Promise<string | null> => {
 
 export const setAccessTokenInMemory = (token: string) => {
   cachedAccessToken = token;
-};
-
-export const logout = async () => {
-  await auth.signOut();
-  cachedAccessToken = null;
 };

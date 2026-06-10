@@ -1,0 +1,201 @@
+import os
+import json
+import asyncio
+import logging
+import httpx
+from typing import List, Dict, Any
+
+logger = logging.getLogger(__name__)
+
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+
+async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 5, delay_ms: int = 1000) -> Dict[str, Any]:
+    """
+    Executes a Gemini API request with exponential backoff for rate limits (429) or server errors (503).
+    """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("Missing GEMINI_API_KEY environment variable")
+
+    url = f"{GEMINI_API_URL}?key={api_key}"
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        for i in range(retries):
+            try:
+                response = await client.post(url, json=payload)
+                
+                # Check for rate limits or server errors
+                if response.status_code in [429, 503]:
+                    status = response.status_code
+                    msg = response.text.lower()
+                    next_delay = (delay_ms * (2 ** i)) / 1000.0  # Convert to seconds
+                    
+                    # Try to parse wait time from 429 response if present
+                    if status == 429:
+                        try:
+                            err_data = response.json()
+                            err_msg = err_data.get("error", {}).get("message", "")
+                            # Parse "Please retry in X seconds"
+                            import re
+                            match = re.search(r"Please retry in ([\d.]+)s", err_msg, re.IGNORECASE)
+                            if match:
+                                next_delay = float(match.group(1)) + 1.0
+                        except Exception:
+                            pass
+                    
+                    logger.warning(
+                        f"Gemini API error (status {status}, attempt {i + 1}/{retries}). "
+                        f"Retrying in {next_delay:.2f}s..."
+                    )
+                    await asyncio.sleep(next_delay)
+                    continue
+                
+                response.raise_for_status()
+                return response.json()
+
+            except httpx.HTTPStatusError as e:
+                # Non-retryable HTTP errors
+                logger.error(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
+                if i == retries - 1:
+                    raise e
+            except Exception as e:
+                logger.error(f"Error calling Gemini API: {e}")
+                if i == retries - 1:
+                    raise e
+                
+                next_delay = (delay_ms * (2 ** i)) / 1000.0
+                await asyncio.sleep(next_delay)
+                
+        raise Exception("Gemini API call failed after retries")
+
+async def analyze_emails(emails: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Constructs the prompt, configures the structured JSON schema, and calls the Gemini API to analyze the emails.
+    """
+    if not emails:
+        return []
+
+    email_parts = []
+    for idx, email in enumerate(emails):
+        part = (
+            f"--- EMAIL #{idx + 1} ---\n"
+            f"ID: {email.get('id', '')}\n"
+            f"Subject: {email.get('subject', '')}\n"
+            f"Snippet: {email.get('snippet', '')}\n"
+            f"Body: {email.get('body', '')}\n"
+            f"Date: {email.get('date', '')}\n"
+            f"--------------------"
+        )
+        email_parts.append(part)
+        
+    email_list_prompt = "\n\n".join(email_parts)
+
+    prompt = (
+        "Analyze the following emails (most are in German for the German job market) received by the user and determine if they are related to a job application.\n"
+        "For each email, extract the hiring company, the job title/role (keep it in German as original, e.g. \"Softwareentwickler\"), estimate the current application status, the office/job location (e.g., \"Düsseldorf, Germany\" or \"Düsseldorf, Deutschland\"), the employment type (anstellungsart, e.g. \"Festanstellung\", \"Vollzeit\", \"Teilzeit\", \"Freie Mitarbeit\"), summarize the message, and offer action points.\n"
+        "Only categorize an email as isJobRelated: true if it is an actual application confirmation (Applied), status update/recruiter follow-up, interview request (Interview), assessment, feedback, rejection (Rejected), or job offer (Offer). Standard newsletters, generic job alerts from social media, spam, or promotional material are NOT job related (isJobRelated: false).\n\n"
+        "For each job-relevant email, you MUST classify it as:\n"
+        "- 'Neue Bewerbung' if the email is a confirmation of a new application receipt (e.g., containing phrases like \"wir haben deine bewerbung bekommen\", \"danke für deine bewerbung\", \"eingangsbestätigung\", \"vielen dank für deine bewerbung\").\n"
+        "- 'Statuswechsel' if the email represents a change or progress in status, such as an invite to an interview (\"interview\", \"gespräch\", \"telefonat\"), a rejection (\"absage\", \"nicht berücksichtigt\", \"anderweitig entschieden\"), or an offer (\"angebot\", \"arbeitsvertrag\", \"vertrag\").\n\n"
+        f"Emails to analyze:\n{email_list_prompt}"
+    )
+
+    system_instruction = (
+        "You are an elite talent acquisition analyst specializing in the German job market (Deutschemarkt). "
+        "Analyze German and English emails meticulously to extract job application statuses. "
+        "Keep the job titles in their original German format (e.g. 'Softwareentwickler' or 'Webentwickler'). "
+        "Produce location values as cities like 'Düsseldorf, Germany' or 'Cologne, Germany' if possible. "
+        "Determine 'anstellungsart' as 'Festanstellung', 'Vollzeit', 'Teilzeit', 'Freie Mitarbeit' or 'N/A'. "
+        "Respond strictly in the JSON format requested."
+    )
+
+    # Replicate the Node.js JSON schema mapping exactly
+    schema = {
+        "type": "ARRAY",
+        "items": {
+            "type": "OBJECT",
+            "properties": {
+                "emailId": {"type": "STRING"},
+                "isJobRelated": {
+                    "type": "BOOLEAN",
+                    "description": "True if the email contains actual updates regarding a specific job application, an interview request, a rejection, an offer, or next steps in the hiring process."
+                },
+                "company": {
+                    "type": "STRING",
+                    "description": "The name of the company hiring (e.g., FINOVESTA GmbH, Google, Acme Corp, Unknown)."
+                },
+                "role": {
+                    "type": "STRING",
+                    "description": "The job title / role position in German if written in German (e.g., Softwareentwickler, Webentwickler, Backend-Entwickler, Unknown)."
+                },
+                "status": {
+                    "type": "STRING",
+                    "description": "The estimated hiring status. Must be one of: 'Applied', 'Interview', 'Rejected', 'Offer', 'Received' or 'Unknown'."
+                },
+                "classification": {
+                    "type": "STRING",
+                    "description": "Must be exactly 'Neue Bewerbung' (for emails confirming submission/receipt of a new application) or 'Statuswechsel' (for rejections, interview invitations, offers, assessments, feedback, or any other changes to an existing status)."
+                },
+                "location": {
+                    "type": "STRING",
+                    "description": "The job location if mentioned, e.g., 'Düsseldorf, Germany', 'Cologne, Germany' or 'N/A'."
+                },
+                "anstellungsart": {
+                    "type": "STRING",
+                    "description": "The employment type, usually in German like 'Festanstellung', 'Vollzeit', 'Teilzeit', 'Freie Mitarbeit' or 'N/A' if not specified."
+                },
+                "confidence": {
+                    "type": "NUMBER",
+                    "description": "Confidence score between 0.0 and 1.0"
+                },
+                "summary": {
+                    "type": "STRING",
+                    "description": "A highly concise 1-sentence summary of the email in German or English."
+                },
+                "suggestedAction": {
+                    "type": "STRING",
+                    "description": "Recommended next step for the user in German or English."
+                }
+            },
+            "required": [
+                "emailId", "isJobRelated", "company", "role", "status", "classification",
+                "location", "anstellungsart", "confidence", "summary", "suggestedAction"
+            ]
+        }
+    }
+
+    # Construct standard generateContent API payload
+    payload = {
+        "contents": {
+            "parts": [
+                {"text": prompt}
+            ]
+        },
+        "systemInstruction": {
+            "parts": [
+                {"text": system_instruction}
+            ]
+        },
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseSchema": schema
+        }
+    }
+
+    response_json = await call_gemini_with_retry(payload)
+    
+    # Extract response text
+    try:
+        candidates = response_json.get("candidates", [])
+        if not candidates:
+            raise ValueError("No candidates found in Gemini response")
+            
+        text = candidates[0].get("content", {}).get("parts", [])[0].get("text", "")
+        if not text:
+            raise ValueError("Empty text returned from Gemini")
+
+        results = json.loads(text.strip())
+        return results
+    except Exception as e:
+        logger.error(f"Failed to parse response text from Gemini: {e}")
+        raise e

@@ -1,0 +1,93 @@
+import React from "react";
+import { Link } from "react-router-dom";
+import { Table, Search, User, Sparkles } from "lucide-react";
+
+export const LandingPage: React.FC = () => {
+  return (
+    <div className="space-y-8 max-w-4xl mx-auto py-6">
+      {/* Welcome Banner */}
+      <header className="relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-r from-blue-900/20 via-slate-900/30 to-purple-950/15 p-8 lg:p-12 shadow-2xl">
+        <div className="absolute right-0 top-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute left-1/3 bottom-0 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
+        
+        <div className="relative z-10 space-y-4">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-500/10 border border-blue-500/15 text-blue-400">
+            <Sparkles className="h-3.5 w-3.5" /> Willkommen bei SyncSheet
+          </div>
+          <h1 className="text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
+            Ihre Bewerbungen, intelligent organisiert.
+          </h1>
+          <p className="text-slate-350 text-sm max-w-2xl leading-relaxed">
+            Synchronisieren Sie Ihren Gmail-Posteingang automatisch, analysieren Sie Rückmeldungen per KI und behalten Sie den Überblick über alle Jobangebote und Interviewtermine an einem einzigen, geschützten Ort.
+          </p>
+        </div>
+      </header>
+
+      {/* Navigation Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Card 1: Job Tracker */}
+        <Link
+          to="/tracker"
+          className="group professional-card p-6 hover:border-blue-500/30 transition duration-300 flex flex-col justify-between hover:scale-[1.02]"
+        >
+          <div className="space-y-4">
+            <div className="h-10 w-10 bg-blue-500/10 border border-blue-500/15 rounded-xl flex items-center justify-center text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition duration-300">
+              <Table className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-100">Bewerbungs-Tracker</h3>
+              <p className="text-slate-400 text-xs mt-2 leading-relaxed">
+                Verwalten Sie Ihre aktuellen Bewerbungen. Fügen Sie Einträge manuell hinzu oder synchronisieren Sie Gmail.
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider block mt-6 group-hover:translate-x-1 transition duration-150">
+            Tracker öffnen &rarr;
+          </span>
+        </Link>
+
+        {/* Card 2: Job Search */}
+        <Link
+          to="/search"
+          className="group professional-card p-6 hover:border-purple-500/30 transition duration-300 flex flex-col justify-between hover:scale-[1.02]"
+        >
+          <div className="space-y-4">
+            <div className="h-10 w-10 bg-purple-500/10 border border-purple-500/15 rounded-xl flex items-center justify-center text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition duration-300">
+              <Search className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-100">Job-Suche</h3>
+              <p className="text-slate-400 text-xs mt-2 leading-relaxed">
+                Suchen Sie nach neuen Karrieremöglichkeiten auf verschiedenen Portalen (In Kürze verfügbar).
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-purple-400 uppercase tracking-wider block mt-6 group-hover:translate-x-1 transition duration-150">
+            Details ansehen &rarr;
+          </span>
+        </Link>
+
+        {/* Card 3: Profile */}
+        <Link
+          to="/profile"
+          className="group professional-card p-6 hover:border-emerald-500/30 transition duration-300 flex flex-col justify-between hover:scale-[1.02]"
+        >
+          <div className="space-y-4">
+            <div className="h-10 w-10 bg-emerald-500/10 border border-emerald-500/15 rounded-xl flex items-center justify-center text-emerald-400 group-hover:bg-emerald-50 group-hover:text-white transition duration-300">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-100">Profil bearbeiten</h3>
+              <p className="text-slate-400 text-xs mt-2 leading-relaxed">
+                Verwalten Sie Ihre persönlichen Profildaten, Lebensläufe und Einstellungen (In Kürze verfügbar).
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block mt-6 group-hover:translate-x-1 transition duration-150">
+            Profil verwalten &rarr;
+          </span>
+        </Link>
+      </div>
+    </div>
+  );
+};
