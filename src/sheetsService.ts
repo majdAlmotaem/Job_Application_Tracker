@@ -1,4 +1,4 @@
-import { JobApplication } from "./types";
+import { JobApplication, normalizeStatus } from "./types";
 
 interface SheetValueResponse {
   values?: string[][];
@@ -28,26 +28,42 @@ interface HeaderIndexes {
   rawHeaders: string[];
 }
 
+export interface SheetProperties {
+  title: string;
+  sheetId: number;
+}
+
 /**
- * Dynamically fetches the name of the first sheet in the spreadsheet
+ * Dynamically fetches properties (title, sheetId) of the first sheet in the spreadsheet
  */
-export async function getFirstSheetName(accessToken: string, spreadsheetId: string): Promise<string> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`;
+export async function getFirstSheetProperties(accessToken: string, spreadsheetId: string): Promise<SheetProperties> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties(title,sheetId)`;
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
     const errMsg = errData.error?.message || response.statusText || "Unknown error";
-    console.error("Google Sheets API Error in getFirstSheetName:", errData);
+    console.error("Google Sheets API Error in getFirstSheetProperties:", errData);
     throw new Error(`Failed to fetch spreadsheet info: ${errMsg}`);
   }
   const data = await response.json();
   const sheets = data.sheets || [];
-  if (sheets.length > 0) {
-    return sheets[0].properties.title;
+  if (sheets.length > 0 && sheets[0].properties) {
+    return {
+      title: sheets[0].properties.title || "Bewerbungen",
+      sheetId: sheets[0].properties.sheetId || 0
+    };
   }
-  return "Table1"; // Fallback
+  return { title: "Bewerbungen", sheetId: 0 }; // Fallback
+}
+
+/**
+ * Dynamically fetches the name of the first sheet in the spreadsheet
+ */
+export async function getFirstSheetName(accessToken: string, spreadsheetId: string): Promise<string> {
+  const props = await getFirstSheetProperties(accessToken, spreadsheetId);
+  return props.title;
 }
 
 /**
@@ -220,7 +236,7 @@ export async function fetchJobApplications(accessToken: string, spreadsheetId: s
       id: String(index + 2), // Actual row number in spreadsheet (matches A2, A3 etc.)
       company: getVal(indexes.company, "Unknown"),
       role: getVal(indexes.role, "Unknown"),
-      status: (getVal(indexes.status, "Applied")) as JobApplication["status"],
+      status: normalizeStatus(getVal(indexes.status, "Applied")),
       date: getVal(indexes.date, ""),
       location: getVal(indexes.location, "N/A"),
       anstellungsart: getVal(indexes.anstellungsart, "N/A"),
@@ -358,5 +374,53 @@ export async function updateJobApplicationRow(
   if (!putResponse.ok) {
     const errorData = await putResponse.json().catch(() => ({}));
     throw new Error(errorData.error?.message || "Failed to update job application row");
+  }
+}
+
+/**
+ * Deletes multiple job application rows from the Google Sheet
+ * @param rowIds list of row numbers (1-based, e.g., "2", "3", etc.)
+ */
+export async function deleteJobApplicationRows(
+  accessToken: string,
+  spreadsheetId: string,
+  rowIds: string[]
+): Promise<void> {
+  if (rowIds.length === 0) return;
+
+  const props = await getFirstSheetProperties(accessToken, spreadsheetId);
+  
+  // Convert row numbers to 0-based indices
+  const indices = rowIds.map(id => parseInt(id, 10) - 1).filter(idx => !isNaN(idx) && idx >= 0);
+  
+  // Sort indices in descending order so that deleting earlier indices doesn't affect later ones
+  indices.sort((a, b) => b - a);
+  
+  const requests = indices.map(idx => ({
+    deleteDimension: {
+      range: {
+        sheetId: props.sheetId,
+        dimension: "ROWS",
+        startIndex: idx,
+        endIndex: idx + 1
+      }
+    }
+  }));
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      requests
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || "Failed to delete rows from Google Sheet");
   }
 }

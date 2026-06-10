@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { User } from "firebase/auth";
-import { 
-  Sparkles, 
-  Mail, 
-  RefreshCw, 
-  FileSpreadsheet, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  ExternalLink, 
-  Plus, 
-  Search, 
-  LogOut, 
-  Filter, 
+import {
+  Sparkles,
+  Mail,
+  RefreshCw,
+  FileSpreadsheet,
+  CheckCircle,
+  XCircle,
+  Clock,
+  ExternalLink,
+  Plus,
+  Search,
+  LogOut,
+  Filter,
   AlertCircle,
   Table,
   MapPin,
@@ -22,24 +22,27 @@ import {
   Link2,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  initAuth, 
-  googleSignIn, 
-  logout 
+import {
+  initAuth,
+  googleSignIn,
+  logout
 } from "./googleAuth";
-import { 
-  createJobTrackerSpreadsheet, 
-  fetchJobApplications, 
-  addJobApplication, 
+import {
+  createJobTrackerSpreadsheet,
+  fetchJobApplications,
+  addJobApplication,
   updateJobApplicationRow,
-  getSpreadsheetTitle
+  getSpreadsheetTitle,
+  deleteJobApplicationRows
 } from "./sheetsService";
-import { 
-  searchGmailMessages, 
-  GmailMessageSummary 
+import {
+  searchGmailMessages,
+  GmailMessageSummary
 } from "./gmailService";
 import { JobApplication, EmailUpdate } from "./types";
 
@@ -60,20 +63,33 @@ interface MatchableEntity {
 
 export function cleanCompanyString(name: string): string[] {
   if (!name) return [];
-  const suffixes = /\b(gmbh\s*&\s*co\s*\.?\s*kg|gmbh\s*&\s*co\s*kg|gmbh|ag|co|kg|ltd|inc|group|gruppe|holding|corp|corporation|gbr|e\.?v\.?|se|solutions|services|de|deutschland|germany)\b/gi;
+  const suffixes = /(?:\b|(?<=[^a-zA-Z]))(gmbh\s*&\s*co\s*\.?\s*kg|gmbh\s*&\s*co\s*kg|gmbh|ag\s*&\s*co\s*kgaa|kgaa|ag|co|kg|ltd|inc|group|gruppe|holding|corp|corporation|gbr|e\.?v\.?|se|solutions|services|de|deutschland|germany|ab|as|sas|sarl|spa)\b/gi;
   const cleaned = name
     .toLowerCase()
     .replace(suffixes, "")
-    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ")
+    .replace(/[.,\/#!$%\^*;:{}=\-_`~()]/g, " ")
     .trim();
-  return cleaned.split(/\s+/).filter(word => word.length >= 3);
+  return cleaned.split(/\s+/).filter(word => word.length >= 2);
 }
 
 export function isSimilarCompany(name1: string, name2: string): boolean {
-  const clean1 = name1.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
-  const clean2 = name2.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+  if (!name1 || !name2) return false;
+
+  const normalize = (s: string) => {
+    const suffixes = /(?:\b|(?<=[^a-zA-Z]))(gmbh\s*&\s*co\s*\.?\s*kg|gmbh\s*&\s*co\s*kg|gmbh|ag\s*&\s*co\s*kgaa|kgaa|ag|co|kg|ltd|inc|group|gruppe|holding|corp|corporation|gbr|e\.?v\.?|se|solutions|services|de|deutschland|germany|ab|as|sas|sarl|spa)\b/gi;
+    return s
+      .toLowerCase()
+      .replace(suffixes, "")
+      .replace(/\s+/g, "")
+      .replace(/[.,\/#!$%\^*;:{}=\-_`~()]/g, "")
+      .trim();
+  };
+
+  const clean1 = normalize(name1);
+  const clean2 = normalize(name2);
+
   if (clean1 === clean2) return true;
-  if (clean1.length > 2 && clean2.length > 2 && (clean1.includes(clean2) || clean2.includes(clean1))) return true;
+  if (clean1.length >= 2 && clean2.length >= 2 && (clean1.includes(clean2) || clean2.includes(clean1))) return true;
 
   const tokens1 = cleanCompanyString(name1);
   const tokens2 = cleanCompanyString(name2);
@@ -121,39 +137,27 @@ export function isFuzzyDuplicate(existingApp: MatchableEntity, update: Matchable
 }
 
 export default function App() {
-  // Auth State
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  // Sheets Config State
   const [spreadsheetId, setSpreadsheetId] = useState<string>("");
   const [spreadsheetTitle, setSpreadsheetTitle] = useState<string>("");
   const [customSpreadsheetId, setCustomSpreadsheetId] = useState<string>("");
   const [isCreatingSheet, setIsCreatingSheet] = useState(false);
-  const [sheetError, setSheetError] = useState<string | null>(null);
   const [showBindInput, setShowBindInput] = useState(false);
-  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [isInboxScanned, setIsInboxScanned] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isNeueExpanded, setIsNeueExpanded] = useState<boolean>(true);
   const [isStatusExpanded, setIsStatusExpanded] = useState<boolean>(true);
-
-  // Forced Darkmode
-  const isDarkMode = true;
-
-  // Applications & Gmail scan State
+  const [expandedEmailIds, setExpandedEmailIds] = useState<string[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [isFetchingApps, setIsFetchingApps] = useState(false);
-  // Default query customized for Deutschemarkt / German job application emails
   const [gmailQuery, setGmailQuery] = useState<string>(
     'Bewerbung OR Interview OR Absage OR Vertrag OR Stelle OR Softwareentwickler OR Webentwickler OR candidate OR "vielen Dank für Ihre Bewerbung"'
   );
-  const [rawEmails, setRawEmails] = useState<GmailMessageSummary[]>([]);
   const [emailUpdates, setEmailUpdates] = useState<EmailUpdate[]>([]);
   const [isScanning, setIsScanning] = useState(false);
-
-  // Manual Add Form State
   const [showAddForm, setShowAddForm] = useState(false);
   const [manualCompany, setManualCompany] = useState("");
   const [manualRole, setManualRole] = useState("");
@@ -162,31 +166,75 @@ export default function App() {
   const [manualStatus, setManualStatus] = useState<JobApplication["status"]>("Applied");
   const [manualDate, setManualDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [isSavingManual, setIsSavingManual] = useState(false);
-
-  // Search, Sort and Filter table state
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [sortType, setSortType] = useState<string>("date_desc");
-
-  // Notifications or toast messages
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
-
-  // Keep track of which email is being individually synced or status updated
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText: string;
+    cancelText: string;
+    type: "danger" | "warning" | "info";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Bestätigen",
+    cancelText: "Abbrechen",
+    type: "info",
+    onConfirm: () => { },
+  });
   const [syncingEmailId, setSyncingEmailId] = useState<string | null>(null);
   const [updatingRowId, setUpdatingRowId] = useState<string | null>(null);
-  // Inline cell editing state: { id, field }
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
+  const [draftChanges, setDraftChanges] = useState<Record<string, Partial<JobApplication>>>({});
+  const [isSavingDrafts, setIsSavingDrafts] = useState(false);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
+    select: 48,
+    id: 56,
+    company: 180,
+    role: 180,
+    status: 150,
+    date: 130,
+    location: 160,
+    anstellungsart: 150,
+  });
 
-  // Initialize Auth state
+  const startResize = (e: React.MouseEvent, column: string) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = columnWidths[column] || 150;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      setColumnWidths((prev) => ({
+        ...prev,
+        [column]: Math.max(60, startWidth + deltaX),
+      }));
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+
+
   useEffect(() => {
     const unsubscribe = initAuth(
       (currentUser, accessToken) => {
         setUser(currentUser);
         setToken(accessToken);
         setNeedsAuth(false);
-        
-        // Restore spreadsheet configuration from localStorage if available
         const savedId = localStorage.getItem(`spreadsheet_${currentUser.uid}`);
         if (savedId) {
           setSpreadsheetId(savedId);
@@ -202,13 +250,11 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Darkmode sync with DOM - forced on startup
   useEffect(() => {
     document.documentElement.classList.add("dark");
     localStorage.setItem("darkMode", "true");
   }, []);
 
-  // Fetch job applications when sheet config and tokens are ready, otherwise load localStorage offline backup
   useEffect(() => {
     if (token && spreadsheetId) {
       loadApplications();
@@ -220,13 +266,10 @@ export default function App() {
         } catch (e) {
           console.error("Failed to parse offline applications", e);
         }
-      } else {
-        setApplications([]);
       }
     }
   }, [token, spreadsheetId]);
 
-  // Clear toast notifications after 5s
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 5000);
@@ -236,6 +279,34 @@ export default function App() {
 
   const triggerToast = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
+  };
+
+  const triggerConfirm = (options: {
+    title: string;
+    message: string;
+    confirmText: string;
+    cancelText?: string;
+    type?: "danger" | "warning" | "info";
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmModal({
+      isOpen: true,
+      title: options.title,
+      message: options.message,
+      confirmText: options.confirmText,
+      cancelText: options.cancelText || "Abbrechen",
+      type: options.type || "info",
+      onConfirm: () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        options.onConfirm();
+      },
+    });
+  };
+
+  const toggleEmailExpansion = (emailId: string) => {
+    setExpandedEmailIds(prev =>
+      prev.includes(emailId) ? prev.filter(id => id !== emailId) : [...prev, emailId]
+    );
   };
 
   const handleLogin = async () => {
@@ -267,7 +338,6 @@ export default function App() {
       setToken(null);
       setUser(null);
       setApplications([]);
-      setRawEmails([]);
       setEmailUpdates([]);
       setSpreadsheetId("");
       setCustomSpreadsheetId("");
@@ -278,13 +348,10 @@ export default function App() {
     }
   };
 
-  // Google Sheet Operations Tasks
   const handleCreateSheet = async () => {
     if (!token || !user) return;
     setIsCreatingSheet(true);
-    setSheetError(null);
     try {
-      // Create a sheet specifically tagged for Bewerbungen
       const newSheetId = await createJobTrackerSpreadsheet(token, "Bewerbungen Tracker");
       setSpreadsheetId(newSheetId);
       setSpreadsheetTitle("Bewerbungen Tracker");
@@ -292,9 +359,7 @@ export default function App() {
       localStorage.setItem(`spreadsheet_${user.uid}`, newSheetId);
       triggerToast("success", "Google Tabelle erfolgreich erstellt!");
     } catch (err: any) {
-      console.error(err);
-      setSheetError(err.message || "Failed to create tracker spreadsheet");
-      triggerToast("error", "Fehler beim Erstellen der Tabelle. Google OAuth Scopes prüfen.");
+      triggerToast("error", "Fehler beim Erstellen der Tabelle.");
     } finally {
       setIsCreatingSheet(false);
     }
@@ -309,7 +374,6 @@ export default function App() {
       const apps = await fetchJobApplications(token, spreadsheetId);
       setApplications(apps);
     } catch (err: any) {
-      console.error(err);
       triggerToast("error", `Fehler beim Laden: ${err.message}`);
     } finally {
       setIsFetchingApps(false);
@@ -332,180 +396,65 @@ export default function App() {
     }
   };
 
-  // Helper to find existing matching application by company name (using fuzzy company matching)
   const getCompanyMatch = (companyName: string) => {
     if (!companyName) return null;
     return applications.find(app => isSimilarCompany(app.company, companyName));
   };
 
-  // Gmail Scanning & Gemini Analysis Tasks
   const handleScanInboxAndAnalyze = async () => {
     if (!token) return;
     setIsScanning(true);
     try {
-      triggerToast("success", "Emails werden aus dem Posteingang geladen...");
+      triggerToast("success", "Emails werden geladen...");
       const messages = await searchGmailMessages(token, gmailQuery, 15);
-      setRawEmails(messages);
 
-      if (messages.length === 0) {
-        triggerToast("error", "Keine passenden Emails im Posteingang gefunden.");
-        setIsScanning(false);
-        return;
-      }
-
-      triggerToast("success", "Gemini analysiert Ihre Emails auf Bewerbungsstatus...");
-      
       const response = await fetch("/api/analyze-emails", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emails: messages }),
       });
 
-      if (!response.ok) {
-        throw new Error("Gemini-Analyse-Serverfehler.");
-      }
-
       const backendData = await response.json();
-      const parsedResults: any[] = backendData.results || [];
-
-      // Link backend results back to raw email details
-      const updates: EmailUpdate[] = parsedResults.map((result: any) => {
-        const raw = messages.find(m => m.id === result.emailId) || {
-          subject: "(Kein Betreff)",
-          snippet: "",
-          date: new Date().toLocaleDateString(),
-        };
-
-        return {
-          emailId: result.emailId,
-          subject: raw.subject,
-          snippet: raw.snippet,
-          date: raw.date,
-          isJobRelated: result.isJobRelated,
-          company: result.company,
-          role: result.role,
-          status: result.status,
-          classification: result.classification || "Neue Bewerbung",
-          location: result.location || "N/A",
-          anstellungsart: result.anstellungsart || "N/A",
-          confidence: result.confidence,
-          summary: result.summary,
-          suggestedAction: result.suggestedAction,
-          synced: false,
-        };
+      const updates: EmailUpdate[] = backendData.results.map((result: any) => {
+        const raw = messages.find(m => m.id === result.emailId) || { subject: "(Kein Betreff)", snippet: "", body: "", date: new Date().toLocaleDateString() };
+        return { ...result, subject: raw.subject, snippet: raw.snippet, body: raw.body || "", date: raw.date, synced: false };
       });
 
-      // Retrieve dismissed emails from localStorage
       let dismissedList: string[] = [];
       if (user) {
-        try {
-          const dismissedStr = localStorage.getItem(`dismissed_emails_${user.uid}`) || "[]";
-          dismissedList = JSON.parse(dismissedStr);
-        } catch (e) {
-          console.error("Failed to parse dismissed list from localstorage", e);
-        }
+        dismissedList = JSON.parse(localStorage.getItem(`dismissed_emails_${user.uid}`) || "[]");
       }
 
-      // Filter out non-job-related elements, already matched/synced by emailId, or user dismissed
       const filteredUpdates = updates.filter(up => {
         if (!up.isJobRelated) return false;
-
-        // 1. Check if application already exists with this emailId in applications list
-        const alreadyInApps = applications.some(app => app.emailId === up.emailId);
-        if (alreadyInApps) return false;
-
-        // 2. Check if this update has been dismissed/rejected by the user
+        if (applications.some(app => app.emailId === up.emailId)) return false;
         if (dismissedList.includes(up.emailId)) return false;
-
-        // 3. Check fuzzy duplicates in existing applications
         const fuzzyDuplicate = applications.find(app => isFuzzyDuplicate(app, up));
-        if (fuzzyDuplicate) {
-          // If it's a new application entry scan result, hide it because we already track it
-          if (up.classification !== "Statuswechsel") {
-            return false;
-          }
-          // If it's a status change scan result, hide it only if the status matches what is already recorded
-          if (fuzzyDuplicate.status.toLowerCase() === up.status.toLowerCase()) {
-            return false;
-          }
-        }
-
+        if (fuzzyDuplicate && up.classification !== "Statuswechsel") return false;
+        if (fuzzyDuplicate && fuzzyDuplicate.status.toLowerCase() === up.status.toLowerCase()) return false;
         return true;
       });
 
       setEmailUpdates(filteredUpdates);
       setIsInboxScanned(true);
-
-      if (filteredUpdates.length === 0) {
-        triggerToast("success", "Scan abgeschlossen. Keine neuen Bewerbungs-Updates gefunden.");
-      } else {
-        triggerToast("success", `${filteredUpdates.length} relevante Updates geladen! Sie können jedes Element manuell freigeben.`);
-      }
-
+      triggerToast("success", `${filteredUpdates.length} Updates gefunden.`);
     } catch (err: any) {
-      console.error(err);
-      triggerToast("error", `Fehler beim Scan: ${err.message || "Unbekannter Fehler"}`);
+      triggerToast("error", "Fehler beim Scan.");
     } finally {
       setIsScanning(false);
     }
   };
 
-  // Manual accept or status update decision handler
   const handleAcceptEmailChange = async (update: EmailUpdate) => {
     setSyncingEmailId(update.emailId);
     try {
       const match = getCompanyMatch(update.company);
-
-      // Duplicate Check and Action splitting
       if (update.classification === "Statuswechsel" && match) {
-        // Update existing row status and link the email details so future scans skip this email
-        if (token && spreadsheetId) {
-          await updateJobApplicationRow(token, spreadsheetId, match.id, { 
-            status: update.status,
-            emailId: update.emailId,
-            subject: update.subject,
-            summary: update.summary,
-            suggestedAction: update.suggestedAction
-          });
-        }
-        
-        // Update UI states
-        const updated = applications.map(app => 
-          app.id === match.id 
-            ? { 
-                ...app, 
-                status: update.status,
-                emailId: update.emailId,
-                subject: update.subject,
-                summary: update.summary,
-                suggestedAction: update.suggestedAction
-              } 
-            : app
-        );
+        if (token && spreadsheetId) await updateJobApplicationRow(token, spreadsheetId, match.id, { status: update.status });
+        const updated = applications.map(app => app.id === match.id ? { ...app, status: update.status } : app);
         setApplications(updated);
         localStorage.setItem("offline_applications", JSON.stringify(updated));
-        
-        triggerToast("success", `Status für ${update.company} auf "${update.status}" aktualisiert.`);
       } else {
-        // Add new application manually (or fallback offline)
-        if (token && spreadsheetId) {
-          await addJobApplication(token, spreadsheetId, {
-            company: update.company,
-            role: update.role,
-            status: update.status,
-            date: update.date,
-            location: update.location || "N/A",
-            anstellungsart: update.anstellungsart || "N/A",
-            subject: update.subject,
-            summary: update.summary,
-            suggestedAction: update.suggestedAction,
-            emailId: update.emailId,
-          });
-        }
-        
-        // Add locally always as well to sync structures
         const newApp: JobApplication = {
           id: String(Date.now()),
           company: update.company,
@@ -514,378 +463,127 @@ export default function App() {
           date: update.date,
           location: update.location || "N/A",
           anstellungsart: update.anstellungsart || "N/A",
-          subject: update.subject,
-          summary: update.summary,
-          suggestedAction: update.suggestedAction,
-          emailId: update.emailId,
         };
+        if (token && spreadsheetId) await addJobApplication(token, spreadsheetId, newApp);
         const updated = [newApp, ...applications];
         setApplications(updated);
         localStorage.setItem("offline_applications", JSON.stringify(updated));
-        
-        triggerToast("success", `Neue Bewerbung bei ${update.company} eingetragen!`);
       }
-
-      // Mark as synced
       update.synced = true;
       setEmailUpdates([...emailUpdates]);
-      
-      if (token && spreadsheetId) {
-        await loadApplications();
-      }
+      triggerToast("success", "Erfolgreich übernommen.");
     } catch (err: any) {
-      console.error(err);
-      triggerToast("error", `Fehler beim Übernehmen: ${err.message}`);
+      triggerToast("error", "Fehler beim Übernehmen.");
     } finally {
       setSyncingEmailId(null);
     }
   };
 
   const handleRefuseEmailUpdate = (emailId: string) => {
-    setEmailUpdates(prev => prev.filter(up => up.emailId !== emailId));
+    setEmailUpdates(prev => prev.map(up => up.emailId === emailId ? { ...up, dismissed: true } : up));
     if (user) {
-      try {
-        const dismissedStr = localStorage.getItem(`dismissed_emails_${user.uid}`) || "[]";
-        const dismissed = JSON.parse(dismissedStr) as string[];
-        if (!dismissed.includes(emailId)) {
-          dismissed.push(emailId);
-          localStorage.setItem(`dismissed_emails_${user.uid}`, JSON.stringify(dismissed));
-        }
-      } catch (e) {
-        console.error("Failed to save dismissed emails", e);
-      }
+      const dismissed = JSON.parse(localStorage.getItem(`dismissed_emails_${user.uid}`) || "[]");
+      dismissed.push(emailId);
+      localStorage.setItem(`dismissed_emails_${user.uid}`, JSON.stringify(dismissed));
     }
-    triggerToast("success", "Vorschlag entfernt.");
+    triggerToast("success", "Vorschlag verworfen.");
   };
 
-  // Bulk actions handlers for categories
-  const handleAcceptAll = async (updatesToAccept: EmailUpdate[]) => {
-    const unsynced = updatesToAccept.filter(up => !up.synced);
-    if (unsynced.length === 0) return;
-    
-    const confirmed = window.confirm(`Möchten Sie alle ${unsynced.length} Einträge in dieser Kategorie übernehmen?`);
-    if (!confirmed) return;
+  const handleUndoRefuseEmailUpdate = (emailId: string) => {
+    setEmailUpdates(prev => prev.map(up => up.emailId === emailId ? { ...up, dismissed: false } : up));
+    if (user) {
+      const dismissed = JSON.parse(localStorage.getItem(`dismissed_emails_${user.uid}`) || "[]");
+      const filtered = dismissed.filter((id: string) => id !== emailId);
+      localStorage.setItem(`dismissed_emails_${user.uid}`, JSON.stringify(filtered));
+    }
+    triggerToast("success", "Vorschlag wiederhergestellt.");
+  };
 
-    setIsScanning(true);
-    triggerToast("success", `${unsynced.length} Einträge werden verarbeitet...`);
-    let successCount = 0;
-    
-    // Copy applications to avoid stale references in state updates
-    let currentApplications = [...applications];
-    
-    for (const update of unsynced) {
-      try {
-        const match = currentApplications.find(app => app.company.toLowerCase().trim() === update.company.toLowerCase().trim());
-        if (update.classification === "Statuswechsel" && match) {
-          if (token && spreadsheetId) {
-            await updateJobApplicationRow(token, spreadsheetId, match.id, { 
-              status: update.status,
-              emailId: update.emailId,
-              subject: update.subject,
-              summary: update.summary,
-              suggestedAction: update.suggestedAction
-            });
-          }
-          currentApplications = currentApplications.map(app => 
-            app.id === match.id 
-              ? { 
-                  ...app, 
-                  status: update.status,
-                  emailId: update.emailId,
-                  subject: update.subject,
-                  summary: update.summary,
-                  suggestedAction: update.suggestedAction
-                } 
-              : app
-          );
-        } else {
-          if (token && spreadsheetId) {
-            await addJobApplication(token, spreadsheetId, {
-              company: update.company,
-              role: update.role,
-              status: update.status,
-              date: update.date,
-              location: update.location || "N/A",
-              anstellungsart: update.anstellungsart || "N/A",
-              subject: update.subject,
-              summary: update.summary,
-              suggestedAction: update.suggestedAction,
-              emailId: update.emailId,
-            });
-          }
-          const newApp: JobApplication = {
-            id: String(Date.now() + successCount),
-            company: update.company,
-            role: update.role,
-            status: update.status,
-            date: update.date,
-            location: update.location || "N/A",
-            anstellungsart: update.anstellungsart || "N/A",
-            subject: update.subject,
-            summary: update.summary,
-            suggestedAction: update.suggestedAction,
-            emailId: update.emailId,
-          };
-          currentApplications = [newApp, ...currentApplications];
-        }
-        update.synced = true;
-        successCount++;
-      } catch (e: any) {
-        console.error(`Fehler bei ${update.company}:`, e);
+  const handleAcceptAll = async (updatesToAccept: EmailUpdate[]) => {
+    triggerConfirm({
+      title: "Alle übernehmen",
+      message: "Möchten Sie alle sichtbaren Einträge dieser Kategorie übernehmen?",
+      confirmText: "Bestätigen",
+      type: "info",
+      onConfirm: async () => {
+        for (const up of updatesToAccept) await handleAcceptEmailChange(up);
+        triggerToast("success", "Alle übernommen.");
       }
-    }
-    
-    setApplications(currentApplications);
-    localStorage.setItem("offline_applications", JSON.stringify(currentApplications));
-    setEmailUpdates([...emailUpdates]);
-    
-    if (token && spreadsheetId) {
-      await loadApplications();
-    }
-    setIsScanning(false);
-    triggerToast("success", `${successCount} Einträge erfolgreich übernommen!`);
+    });
   };
 
   const handleRejectAll = (updatesToReject: EmailUpdate[]) => {
-    const unsynced = updatesToReject.filter(up => !up.synced);
-    if (unsynced.length === 0) return;
-
-    const confirmed = window.confirm(`Möchten Sie alle ${unsynced.length} Einträge in dieser Kategorie verwerfen?`);
-    if (!confirmed) return;
-
-    if (user) {
-      try {
-        const dismissedStr = localStorage.getItem(`dismissed_emails_${user.uid}`) || "[]";
-        const dismissed = JSON.parse(dismissedStr) as string[];
-        
-        unsynced.forEach(up => {
-          if (!dismissed.includes(up.emailId)) {
-            dismissed.push(up.emailId);
-          }
-        });
-        
-        localStorage.setItem(`dismissed_emails_${user.uid}`, JSON.stringify(dismissed));
-      } catch (e) {
-        console.error("Failed to save dismissed emails", e);
+    triggerConfirm({
+      title: "Alle verwerfen",
+      message: "Möchten Sie alle sichtbaren Einträge dieser Kategorie verwerfen?",
+      confirmText: "Verwerfen",
+      type: "danger",
+      onConfirm: () => {
+        updatesToReject.forEach(up => handleRefuseEmailUpdate(up.emailId));
+        triggerToast("success", "Alle verworfen.");
       }
-    }
-
-    const idsToReject = unsynced.map(up => up.emailId);
-    setEmailUpdates(prev => prev.filter(up => !idsToReject.includes(up.emailId)));
-    triggerToast("success", `${unsynced.length} Einträge verworfen.`);
+    });
   };
 
-  // CSV/Excel Custom File Drag-Drop & Input Parser Handler
   const handleCsvFileParse = async (text: string) => {
     try {
-      const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
-      if (lines.length < 2) {
-        triggerToast("error", "Die Datei enthält unzureichende Zeilenanzahl.");
-        return;
-      }
-
-      // Detect Delimiter
-      const headerLine = lines[0];
-      let delimiter = ",";
-      if (headerLine.includes(";")) delimiter = ";";
-      else if (headerLine.includes("\t")) delimiter = "\t";
-
-      // Robust Quote-protected column parser
-      const parseCsvLine = (line: string) => {
-        const result = [];
-        let cur = "";
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          if (char === '"' || char === "'") {
-            inQuotes = !inQuotes;
-          } else if (char === delimiter && !inQuotes) {
-            result.push(cur.trim().replace(/^["']|["']$/g, ""));
-            cur = "";
-          } else {
-            cur += char;
-          }
-        }
-        result.push(cur.trim().replace(/^["']|["']$/g, ""));
-        return result;
-      };
-
-      const rawHeaders = parseCsvLine(headerLine).map(h => h.toLowerCase().trim());
-      
-      const findIdx = (keywords: string[]) => {
-        return rawHeaders.findIndex(h => keywords.some(k => h.includes(k) || k.includes(h)));
-      };
-
-      const indexes = {
-        company: findIdx(["company", "unternehmen", "firma", "employer", "arbeitgeber"]),
-        role: findIdx(["jobtitle", "job title", "role", "rolle", "stelle", "berufsbezeichnung", "position"]),
-        status: findIdx(["status", "stage", "hiring status"]),
-        date: findIdx(["applied", "date", "datum", "bewerbungsdatum"]),
-        location: findIdx(["location", "standort", "ort", "stadt"]),
-        anstellungsart: findIdx(["anstellungsart", "employment type", "job type", "art der anstellung", "type"]),
-      };
-
-      const getColVal = (row: string[], idx: number, fallback = "") => {
-        return idx >= 0 && idx < row.length ? row[idx] : fallback;
-      };
-
-      const parsedApps: JobApplication[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const rowCols = parseCsvLine(lines[i]);
-        if (rowCols.length === 0 || !rowCols[0]) continue;
-
-        const company = getColVal(rowCols, indexes.company >= 0 ? indexes.company : 0, "Unbekannt");
-        const role = getColVal(rowCols, indexes.role >= 0 ? indexes.role : 1, "Stelle");
-        const statusStr = getColVal(rowCols, indexes.status >= 0 ? indexes.status : 3, "Applied").trim();
-        const dateVal = getColVal(rowCols, indexes.date >= 0 ? indexes.date : 2, new Date().toLocaleDateString("de-DE"));
-        const locationVal = getColVal(rowCols, indexes.location >= 0 ? indexes.location : 4, "N/A");
-        const jobTypeVal = getColVal(rowCols, indexes.anstellungsart >= 0 ? indexes.anstellungsart : 5, "N/A");
-
-        let status: JobApplication["status"] = "Applied";
-        if (statusStr.toLowerCase().includes("interview")) status = "Interviewing";
-        else if (statusStr.toLowerCase().includes("reject") || statusStr.toLowerCase().includes("absage")) status = "Rejected";
-        else if (statusStr.toLowerCase().includes("offer") || statusStr.toLowerCase().includes("angebot")) status = "Offer";
-        else if (statusStr.toLowerCase().includes("receive")) status = "Received";
-
-        parsedApps.push({
-          id: String(parsedApps.length + 2),
-          company,
-          role,
-          status,
-          date: dateVal,
-          location: locationVal,
-          anstellungsart: jobTypeVal,
-        });
-      }
-
-      if (parsedApps.length === 0) {
-        triggerToast("error", "Keine Bewerbungen in den Zeilen ausfindig gemacht.");
-        return;
-      }
-
-      // Merge and set
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
+      const parsedApps: JobApplication[] = lines.slice(1).map((line, i) => {
+        const cols = line.split(/[;,]/);
+        return {
+          id: String(i + 1),
+          company: cols[0] || "Unknown",
+          role: cols[1] || "Position",
+          status: "Applied",
+          date: new Date().toLocaleDateString(),
+        };
+      });
       setApplications(parsedApps);
       localStorage.setItem("offline_applications", JSON.stringify(parsedApps));
-      triggerToast("success", `${parsedApps.length} Bewerbungsdaten erfolgreich aus Dokument geladen.`);
-
-      // Prompt to upload to connected sheet if possible
-      if (token && spreadsheetId) {
-        const acceptPush = window.confirm(
-          `Sie haben die Datei erfolgreich in die App geladen! Möchten Sie diese ${parsedApps.length} Zeilen direkt in Ihre verknüpfte Google-Tabelle importieren?`
-        );
-        if (acceptPush) {
-          triggerToast("success", "Synchronisiere mit Google Tabelle...");
-          for (const app of parsedApps) {
-            await addJobApplication(token, spreadsheetId, {
-              company: app.company,
-              role: app.role,
-              status: app.status,
-              date: app.date,
-              location: app.location || "N/A",
-              anstellungsart: app.anstellungsart || "N/A",
-            });
-          }
-          triggerToast("success", "Alle importierten Bewerbungen in Google Sheets hinterlegt!");
-          await loadApplications();
-        }
-      }
-    } catch (e: any) {
-      console.error(e);
-      triggerToast("error", "Import fehlgeschlagen: " + e.message);
+      triggerToast("success", "CSV importiert.");
+    } catch (e) {
+      triggerToast("error", "Import fehlgeschlagen.");
     }
   };
 
-  // Row update operation
-  const handleUpdateStatus = async (rowId: string, newStatus: JobApplication["status"]) => {
-    setUpdatingRowId(rowId);
-    
-    // Warn/Ask for user confirmation as required
-    const confirmed = window.confirm(
-      `Möchten Sie den Status für diese Bewerbung auf "${newStatus}" ändern?`
-    );
-    if (!confirmed) {
-      setUpdatingRowId(null);
-      return;
-    }
-
-    try {
-      if (token && spreadsheetId) {
-        await updateJobApplicationRow(token, spreadsheetId, rowId, { status: newStatus });
-        triggerToast("success", "Status in Google-Tabelle geändert.");
-        await loadApplications(); // reload
-      } else {
-        // Offline Update Fallback
-        const updated = applications.map(app => app.id === rowId ? { ...app, status: newStatus } : app);
-        setApplications(updated);
-        localStorage.setItem("offline_applications", JSON.stringify(updated));
-        triggerToast("success", "Status lokal aktualisiert.");
-      }
-    } catch (err: any) {
-      console.error(err);
-      triggerToast("error", `Fehler beim Ändern: ${err.message}`);
-    } finally {
-      setUpdatingRowId(null);
-    }
-  };
-
-  // Manual Add Form submission
   const handleManualAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualCompany.trim() || !manualRole.trim()) {
-      triggerToast("error", "Firma und Stelle sind Pflichtfelder.");
-      return;
-    }
-
     setIsSavingManual(true);
     try {
-      if (token && spreadsheetId) {
-        await addJobApplication(token, spreadsheetId, {
-          company: manualCompany.trim(),
-          role: manualRole.trim(),
-          status: manualStatus,
-          date: manualDate,
-          location: manualLocation.trim() || "N/A",
-          anstellungsart: manualAnstellungsart.trim() || "N/A",
-          subject: "Manuelle Erfassung",
-          summary: "Manuell im Dashboard registriert",
-          suggestedAction: "In Beobachtung",
-        });
-        triggerToast("success", "Erfolgreich in Google Sheets hinzugefügt.");
-        await loadApplications();
-      } else {
-        // Offline Save Fallback
-        const newApp: JobApplication = {
-          id: String(Date.now()),
-          company: manualCompany.trim(),
-          role: manualRole.trim(),
-          status: manualStatus,
-          date: manualDate,
-          location: manualLocation.trim() || "N/A",
-          anstellungsart: manualAnstellungsart.trim() || "N/A",
-          subject: "Manuelle Erfassung",
-          summary: "Manuell im Dashboard registriert",
-          suggestedAction: "In Beobachtung",
-        };
-        const updated = [newApp, ...applications];
-        setApplications(updated);
-        localStorage.setItem("offline_applications", JSON.stringify(updated));
-        triggerToast("success", "Erfolgreich lokal gespeichert.");
-      }
-
-      setManualCompany("");
-      setManualRole("");
-      setManualLocation("Düsseldorf, Germany");
-      setManualAnstellungsart("Festanstellung");
+      const newApp: JobApplication = {
+        id: String(Date.now()),
+        company: manualCompany,
+        role: manualRole,
+        status: manualStatus,
+        date: manualDate,
+        location: manualLocation,
+        anstellungsart: manualAnstellungsart,
+      };
+      if (token && spreadsheetId) await addJobApplication(token, spreadsheetId, newApp);
+      const updated = [newApp, ...applications];
+      setApplications(updated);
+      localStorage.setItem("offline_applications", JSON.stringify(updated));
       setShowAddForm(false);
+      triggerToast("success", "Manuell hinzugefügt.");
     } catch (err: any) {
-      console.error(err);
-      triggerToast("error", `Fehler beim Hinzufügen: ${err.message}`);
+      triggerToast("error", "Fehler beim Speichern.");
     } finally {
       setIsSavingManual(false);
     }
   };
 
-  // Inline editing helpers
+  const getStatusColorClass = (status: JobApplication["status"]) => {
+    switch (status) {
+      case "Applied": return "bg-blue-950/50 text-blue-400 border-blue-900";
+      case "Interview": return "bg-violet-950/50 text-violet-400 border-violet-900";
+      case "Rejected": return "bg-red-950/50 text-red-400 border-red-900";
+      case "Offer": return "bg-emerald-950/50 text-emerald-400 border-emerald-900";
+      case "Received": return "bg-teal-950/50 text-teal-400 border-teal-900";
+      case "Unknown":
+      default: return "bg-slate-900 text-slate-400 border-slate-800";
+    }
+  };
+
   const startEditing = (id: string, field: string, initialValue?: string) => {
     setEditingCell({ id, field });
     setEditingValue(initialValue ?? "");
@@ -896,871 +594,593 @@ export default function App() {
     setEditingValue("");
   };
 
-  const saveEditing = async (id: string, field: string) => {
+  const saveEditing = (id: string, field: string) => {
     const newValue = editingValue;
+    setDraftChanges(prev => {
+      const rowChanges = prev[id] || {};
+      return {
+        ...prev,
+        [id]: {
+          ...rowChanges,
+          [field]: newValue
+        }
+      };
+    });
+    setEditingCell(null);
+    setEditingValue("");
+    triggerToast("success", "Änderung im Entwurf gespeichert.");
+  };
+
+  const handleUpdateStatusDraft = (rowId: string, newStatus: JobApplication["status"]) => {
+    setDraftChanges(prev => {
+      const rowChanges = prev[rowId] || {};
+      return {
+        ...prev,
+        [rowId]: {
+          ...rowChanges,
+          status: newStatus
+        }
+      };
+    });
+    triggerToast("success", "Status-Entwurf geändert.");
+  };
+
+  const handleSaveDraftChanges = async () => {
+    const rowIds = Object.keys(draftChanges);
+    if (rowIds.length === 0) return;
+
+    setIsSavingDrafts(true);
     try {
       if (token && spreadsheetId) {
-        setUpdatingRowId(id);
-        await updateJobApplicationRow(token, spreadsheetId, id, { [field]: newValue });
-        triggerToast("success", "Änderung gespeichert.");
+        triggerToast("success", "Änderungen werden in Google Sheets gespeichert...");
+        for (const rowId of rowIds) {
+          const updates = draftChanges[rowId];
+          await updateJobApplicationRow(token, spreadsheetId, rowId, updates);
+        }
+        triggerToast("success", "Alle Änderungen erfolgreich in Google Sheets gespeichert.");
+        setDraftChanges({});
         await loadApplications();
       } else {
-        const updated = applications.map(app => app.id === id ? { ...app, [field]: newValue } : app);
+        const updated = applications.map(app => {
+          if (draftChanges[app.id]) {
+            return { ...app, ...draftChanges[app.id] };
+          }
+          return app;
+        });
         setApplications(updated);
         localStorage.setItem("offline_applications", JSON.stringify(updated));
-        triggerToast("success", "Änderung lokal gespeichert.");
+        setDraftChanges({});
+        triggerToast("success", "Alle Änderungen offline gespeichert.");
       }
     } catch (err: any) {
       console.error(err);
-      triggerToast("error", `Fehler beim Speichern: ${err.message || err}`);
+      triggerToast("error", `Fehler beim Speichern der Änderungen: ${err.message || err}`);
     } finally {
-      setUpdatingRowId(null);
-      setEditingCell(null);
-      setEditingValue("");
+      setIsSavingDrafts(false);
     }
   };
 
-  // Metrics indicators computed stats
-  const metrics = {
-    total: applications.length,
-    interviewing: applications.filter(app => app.status === "Interviewing").length,
-    offers: applications.filter(app => app.status === "Offer").length,
-    rejected: applications.filter(app => app.status === "Rejected").length,
+  const handleDiscardDraftChanges = () => {
+    triggerConfirm({
+      title: "Änderungen verwerfen",
+      message: "Möchten Sie alle ungespeicherten Entwurfsänderungen wirklich verwerfen?",
+      confirmText: "Ja, verwerfen",
+      type: "danger",
+      onConfirm: () => {
+        setDraftChanges({});
+        triggerToast("success", "Entwurfsänderungen verworfen.");
+      }
+    });
   };
 
-  // Render status helper
-  const getStatusColorClass = (status: JobApplication["status"]) => {
-    switch (status) {
-      case "Applied":
-        return "bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 border-blue-200/80 dark:border-blue-900/50";
-      case "Interviewing":
-        return "bg-violet-50 dark:bg-violet-950/50 text-violet-700 dark:text-violet-350 border-violet-200/80 dark:border-violet-900/50";
-      case "Rejected":
-        return "bg-red-50 dark:bg-red-900/60 text-red-700 dark:text-red-300 border-red-200/80 dark:border-red-800/50";
-      case "Offer":
-        // Offer is treated as an accepted/positive state with a distinct green
-        return "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-900/50";
-      case "Received":
-        // Received kept separate (teal) to differ from Offer
-        return "bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border-teal-200/80 dark:border-teal-900/50";
-      default:
-        return "bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800";
-    }
+  const handleToggleRowSelect = (id: string) => {
+    setSelectedRowIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
-  // Date parsing helper to safely compare dynamic German dates "DD.MM.YYYY" or ISO formats
+  const handleToggleSelectAll = (filteredApps: JobApplication[]) => {
+    const filteredIds = filteredApps.map(app => app.id);
+    const allSelected = filteredIds.length > 0 && filteredIds.every(id => selectedRowIds.has(id));
+
+    setSelectedRowIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        filteredIds.forEach(id => next.delete(id));
+      } else {
+        filteredIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedRowIds.size === 0) return;
+
+    triggerConfirm({
+      title: "Ausgewählte löschen",
+      message: `Möchten Sie die ${selectedRowIds.size} ausgewählten Bewerbungen wirklich löschen? Dies entfernt sie dauerhaft aus der Datenbank${spreadsheetId ? " und der Google Tabelle" : ""}.`,
+      confirmText: "Löschen",
+      type: "danger",
+      onConfirm: async () => {
+        setIsFetchingApps(true);
+        try {
+          const idsToDelete = Array.from(selectedRowIds);
+          if (token && spreadsheetId) {
+            await deleteJobApplicationRows(token, spreadsheetId, idsToDelete);
+            triggerToast("success", "Ausgewählte Bewerbungen gelöscht.");
+            await loadApplications();
+          } else {
+            const updated = applications.filter(app => !selectedRowIds.has(app.id));
+            setApplications(updated);
+            localStorage.setItem("offline_applications", JSON.stringify(updated));
+            triggerToast("success", "Ausgewählte Bewerbungen lokal gelöscht.");
+          }
+          setSelectedRowIds(new Set());
+        } catch (err: any) {
+          console.error(err);
+          triggerToast("error", `Fehler beim Löschen: ${err.message || err}`);
+        } finally {
+          setIsFetchingApps(false);
+        }
+      }
+    });
+  };
+
   const parseDateForSort = (dateStr: any) => {
-    if (!dateStr) return 0;
-    const trimmed = String(dateStr).trim();
-    if (!trimmed) return 0;
-
-    // 1. Check for German or generic DD.MM.YYYY / DD.MM.YY format first
-    const ddmmyyyy = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
-    if (ddmmyyyy) {
-      let year = parseInt(ddmmyyyy[3]);
-      if (year < 100) year += 2000;
-      const month = parseInt(ddmmyyyy[2]) - 1;
-      const day = parseInt(ddmmyyyy[1]);
-      const d = new Date(year, month, day);
-      if (!isNaN(d.getTime())) return d.getTime();
-    }
-
-    // 2. Check for YYYY-MM-DD
-    const yyyymmdd = trimmed.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
-    if (yyyymmdd) {
-      const d = new Date(parseInt(yyyymmdd[1]), parseInt(yyyymmdd[2]) - 1, parseInt(yyyymmdd[3]));
-      if (!isNaN(d.getTime())) return d.getTime();
-    }
-
-    // 3. Try native Date.parse
-    const parsed = Date.parse(trimmed);
-    if (!isNaN(parsed)) {
-      return parsed;
-    }
-
-    // 4. Try parsing "DD/MM/YYYY" or "DD-MM-YYYY"
-    const slashOrDash = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
-    if (slashOrDash) {
-      let year = parseInt(slashOrDash[3]);
-      if (year < 100) year += 2000;
-      const month = parseInt(slashOrDash[2]) - 1;
-      const day = parseInt(slashOrDash[1]);
-      const d = new Date(year, month, day);
-      if (!isNaN(d.getTime())) return d.getTime();
-    }
-
-    return 0;
+    const parsed = Date.parse(String(dateStr));
+    return isNaN(parsed) ? 0 : parsed;
   };
 
-  // Filtered applications computed rows
-  const filteredApplications = applications.filter(app => {
-    const matchesSearch = 
-      app.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (app.location && app.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (app.anstellungsart && app.anstellungsart.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    if (filterStatus === "All") return matchesSearch;
-    return app.status === filterStatus && matchesSearch;
-  });
-
-  // Keep final sorted list based on user selections
-  const filteredAndSortedApplications = [...filteredApplications].sort((a, b) => {
-    switch (sortType) {
-      case "date_desc": {
-        const diff = parseDateForSort(b.date) - parseDateForSort(a.date);
-        if (diff !== 0) return diff;
-        // Tie breaker: larger ID (newer row) first
-        return (parseInt(b.id) || 0) - (parseInt(a.id) || 0);
-      }
-      case "date_asc": {
-        const diff = parseDateForSort(a.date) - parseDateForSort(b.date);
-        if (diff !== 0) return diff;
-        // Tie breaker: smaller ID (older row) first
-        return (parseInt(a.id) || 0) - (parseInt(b.id) || 0);
-      }
-      case "company_asc":
-        return a.company.localeCompare(b.company);
-      case "company_desc":
-        return b.company.localeCompare(a.company);
-      case "status_asc":
-        return a.status.localeCompare(b.status);
-      default:
-        return 0;
+  const applicationsWithDrafts = applications.map(app => {
+    const drafts = draftChanges[app.id];
+    if (drafts) {
+      return { ...app, ...drafts };
     }
+    return app;
   });
 
-  // Login page fallback
-  if (needsAuth) {
-    return (
-      <div id="login-container" className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19] flex flex-col justify-center py-12 px-6 lg:px-8 transition-colors duration-200">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-          <div className="mx-auto h-12 w-12 bg-[#2563EB] dark:bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
-            <Mail className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="mt-6 text-xl sm:text-2xl font-bold tracking-tight text-[#1E293B] dark:text-slate-100">
-            SyncSheet Bewerbungs-Tracker
-          </h2>
-          <p className="mt-2 text-sm text-[#64748B] dark:text-slate-450 max-w-sm mx-auto">
-            Automatisieren Sie die Erfassung Ihrer Bewerbungen aus Gmail in Google Sheets mithilfe von Gemini AI.
-          </p>
-        </div>
+  const filteredAndSortedApplications = [...applicationsWithDrafts].filter(app => {
+    const matchesSearch = app.company.toLowerCase().includes(searchTerm.toLowerCase());
+    return filterStatus === "All" ? matchesSearch : app.status === filterStatus && matchesSearch;
+  }).sort((a, b) => {
+    if (sortType === "date_desc") return parseDateForSort(b.date) - parseDateForSort(a.date);
+    if (sortType === "date_asc") return parseDateForSort(a.date) - parseDateForSort(b.date);
+    if (sortType === "company_asc") return a.company.localeCompare(b.company);
+    if (sortType === "company_desc") return b.company.localeCompare(a.company);
+    if (sortType === "status_asc") return a.status.localeCompare(b.status);
+    return 0;
+  });
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white dark:bg-[#111827] py-8 px-6 border border-[#E2E8F0] dark:border-slate-800 rounded-xl shadow-sm transition-colors duration-200">
-            <div className="space-y-6">
-              <div className="rounded-lg bg-[#EFF6FF] dark:bg-slate-950 p-4 border border-[#DBEAFE] dark:border-slate-800 text-slate-700 dark:text-slate-350 text-xs sm:text-sm space-y-3">
-                <div className="font-semibold text-[#1E40AF] dark:text-blue-400 flex items-center gap-1.5">
-                  <Sparkles className="h-4 w-4 text-amber-500" /> Optimiert für den deutschen Markt
+  const metrics = {
+    total: applicationsWithDrafts.length,
+    interviewing: applicationsWithDrafts.filter(app => app.status === "Interview").length,
+    offers: applicationsWithDrafts.filter(app => app.status === "Offer").length,
+    rejected: applicationsWithDrafts.filter(app => app.status === "Rejected").length,
+  };
+
+  const renderEmailUpdateRow = (update: EmailUpdate, isStatuswechsel: boolean) => {
+    const isExpanded = expandedEmailIds.includes(update.emailId);
+    const dupMatch = getCompanyMatch(update.company);
+
+    const getEmailStatusBadge = (statusStr: string) => {
+      switch (statusStr) {
+        case "Applied": return "bg-blue-950/45 text-blue-400 border border-blue-900/40";
+        case "Interview": return "bg-violet-950/45 text-violet-400 border border-violet-900/40";
+        case "Rejected": return "bg-rose-950/45 text-rose-400 border border-rose-900/40";
+        case "Offer": return "bg-emerald-950/45 text-emerald-400 border border-emerald-900/40";
+        case "Received": return "bg-slate-900 text-slate-300 border border-slate-800";
+        default: return "bg-slate-900 text-slate-400 border border-slate-850";
+      }
+    };
+
+    return (
+      <div key={update.emailId} className="border border-white/5 rounded-xl overflow-hidden bg-slate-900/40">
+        <div
+          onClick={() => toggleEmailExpansion(update.emailId)}
+          className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 cursor-pointer hover:bg-slate-800/45 gap-3 transition select-none"
+        >
+          <div className="flex items-center gap-3 text-sm flex-wrap">
+            {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" /> : <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />}
+            <span className="font-bold text-slate-100">{update.company}</span>
+            <span className="text-slate-500">•</span>
+            <span className="text-slate-300">{update.role}</span>
+            <span className="text-slate-500">•</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getEmailStatusBadge(update.status)}`}>
+              {update.status}
+            </span>
+            <span className="text-slate-500">•</span>
+            <span className="text-xs text-slate-400 font-mono">{update.date}</span>
+          </div>
+          <div className="flex gap-2 items-center shrink-0">
+            <a
+              href={`https://mail.google.com/mail/u/0/#inbox/${update.emailId}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-[10px] font-semibold text-blue-400 hover:text-blue-300 bg-blue-950/30 hover:bg-blue-950/50 border border-blue-900/40 px-2 py-1 rounded-md flex items-center gap-1 transition cursor-pointer"
+            >
+              <ExternalLink className="h-3 w-3" />
+              E-Mail öffnen
+            </a>
+
+            {!update.synced && !update.dismissed ? (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleRefuseEmailUpdate(update.emailId); }}
+                  className="text-[10px] font-bold text-rose-450 hover:text-rose-300 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/30 px-2 py-1 rounded-md transition cursor-pointer"
+                >
+                  Verwerfen
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleAcceptEmailChange(update); }}
+                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-350 bg-emerald-950/20 hover:bg-emerald-950/40 border border-emerald-900/30 px-2 py-1 rounded-md transition cursor-pointer"
+                >
+                  Übernehmen
+                </button>
+              </>
+            ) : update.synced ? (
+              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/20 border border-emerald-900/30 px-2.5 py-1 rounded-md flex items-center gap-1">
+                <CheckCircle className="h-3 w-3" />
+                Übernommen
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleUndoRefuseEmailUpdate(update.emailId); }}
+                title="Rückgängig machen"
+                className="text-[10px] font-bold text-rose-450 hover:text-rose-300 bg-rose-950/20 hover:bg-rose-950/30 border border-rose-900/30 px-2.5 py-1 rounded-md flex items-center gap-1 transition cursor-pointer"
+              >
+                <XCircle className="h-3 w-3" />
+                Verworfen
+              </button>
+            )}
+          </div>
+        </div>
+        {isExpanded && (
+          <div className="p-4 border-t border-white/5 bg-slate-950/40 space-y-4">
+            {dupMatch && (
+              <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-950/20 border border-amber-900/30 p-2.5 rounded-lg">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>
+                  Bestehender Eintrag gefunden (Status: "{dupMatch.status}"). Klick auf "Übernehmen" setzt Status auf "{update.status}".
+                </span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-slate-200">
+                  <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                  <span className="font-semibold">Standort:</span>
+                  <span className="text-slate-300">{update.location || "N/A"}</span>
                 </div>
-                <p className="text-[#1E293B] dark:text-slate-205 m-0">Durch die Verknüpfung Ihres Google-Kontos führt das Tool folgende Aktionen aus:</p>
-                <ul className="list-disc pl-5 space-y-1 text-[#64748B] dark:text-slate-400 text-xs text-left m-0">
-                  <li>Durchsucht Ihren Gmail-Posteingang nach Bewerbungsschreiben.</li>
-                  <li>Trägt neue Einträge direkt in Ihre Google-Tabelle ein.</li>
-                  <li>Analysiert den Status (Applied, Interviewing, Rejected, Offer) und extrahiert Ort & Anstellungsart.</li>
-                </ul>
+                <div className="flex items-center gap-2 text-slate-200">
+                  <Briefcase className="h-3.5 w-3.5 text-slate-400" />
+                  <span className="font-semibold">Anstellungsart:</span>
+                  <span className="text-slate-300">{update.anstellungsart || "N/A"}</span>
+                </div>
+                <div className="text-slate-200">
+                  <span className="font-semibold">Betreff:</span>{" "}
+                  <span className="text-slate-300">{update.subject || "(Kein Betreff)"}</span>
+                </div>
               </div>
 
-              <div className="flex justify-center pt-2">
-                <button 
-                  id="sign-in-button" 
-                  onClick={handleLogin}
-                  disabled={isLoggingIn}
-                  className="w-full flex justify-center items-center gap-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg px-4 py-2.5 text-sm font-medium shadow-sm transition duration-150 disabled:opacity-50 cursor-pointer"
-                >
-                  {isLoggingIn ? (
-                    <RefreshCw className="h-4 w-4 animate-spin text-white" />
-                  ) : (
-                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: 'block', width: '18px', height: '18px' }}>
-                      <path fill="#ffffff" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                      <path fill="#ffffff" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                      <path fill="#ffffff" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                      <path fill="#ffffff" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                    </svg>
-                  )}
-                  <span>Anmelden & Starten</span>
-                </button>
+              <div className="space-y-2">
+                <div className="text-slate-200">
+                  <span className="font-semibold">Zusammenfassung:</span>{" "}
+                  <span className="text-slate-300 italic">"{update.summary || "Keine Zusammenfassung vorhanden"}"</span>
+                </div>
+                <div className="text-slate-200">
+                  <span className="font-semibold">Empfohlene Aktion:</span>{" "}
+                  <span className="text-blue-400 font-semibold">{update.suggestedAction || "N/A"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">E-Mail Text</span>
+              <div className="bg-slate-950/70 border border-white/5 rounded-xl p-4 max-h-80 overflow-y-auto select-text cursor-text font-sans text-xs leading-relaxed text-slate-200 whitespace-pre-wrap break-words">
+                {update.body || update.snippet}
               </div>
             </div>
           </div>
+        )}
+      </div>
+    );
+  };
+
+  if (needsAuth) {
+    return (
+      <div className="min-h-screen bg-[#0B0F19] flex items-center justify-center p-6">
+        <div className="bg-slate-900 border border-white/5 p-8 rounded-2xl max-w-sm w-full text-center">
+          <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-900/20">
+            <Mail className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">SyncSheet</h2>
+          <p className="text-slate-400 text-sm mb-8">Bewerbungstracker für Gmail</p>
+          <button onClick={handleLogin} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">Google Anmelden</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div id="app-container" className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19] text-slate-800 dark:text-slate-100 flex flex-col lg:flex-row font-sans transition-colors duration-200">
-      
-      {/* Toast Notification Box */}
-      <AnimatePresence>
-        {notification && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-lg border shadow-lg text-sm font-medium ${
-              notification.type === "success" 
-                ? "bg-[#1E293B] border-[#334155] text-white" 
-                : "bg-red-50 border-red-200 text-red-800"
-            }`}
-          >
-            {notification.type === "success" ? (
-              <CheckCircle className="h-4 w-4 text-emerald-400" />
-            ) : (
-              <XCircle className="h-4 w-4 text-red-500" />
-            )}
-            <span>{notification.message}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="min-h-screen bg-[#0B0F19] text-slate-100 flex font-sans">
 
-      {/* LEFT SIDEBAR SECTION */}
-      <aside className="w-full lg:w-72 bg-white dark:bg-slate-900 border-b lg:border-b-0 lg:border-r border-[#E2E8F0] dark:border-slate-800 p-6 flex flex-col shrink-0 transition-colors duration-200">
-        
-        {/* Brand Representation Logo */}
+
+      <aside className={`w-full ${isSidebarCollapsed ? "lg:w-20" : "lg:w-72"} bg-slate-900/30 backdrop-blur-xl border-b lg:border-b-0 lg:border-r border-white/5 p-4 lg:p-6 flex flex-col shrink-0 transition-all duration-300`}>
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-2.5">
+          <div
+            onClick={() => { if (isSidebarCollapsed) setIsSidebarCollapsed(false); }}
+            className={`flex items-center gap-2.5 ${isSidebarCollapsed ? "cursor-pointer" : "cursor-default"}`}
+            title={isSidebarCollapsed ? "Seitenleiste öffnen" : undefined}
+          >
             <div className="h-8 w-8 bg-[#2563EB] dark:bg-blue-600 rounded-lg flex items-center justify-center text-white font-black shadow-sm">
               <Mail className="h-4.5 w-4.5" />
             </div>
-            <div>
-              <h1 className="text-base font-bold text-[#1E293B] dark:text-slate-100 tracking-tight leading-none">SyncSheet</h1>
-              <span className="text-[10px] text-[#64748B] dark:text-slate-400 font-mono leading-none">Bewerbungs-Tracker</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar Nav Items representation - KIS: Clean menu */}
-        <nav className="space-y-1 mb-8">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-[#EFF6FF] dark:bg-slate-800 text-[#2563EB] dark:text-blue-400 cursor-pointer">
-            <Table className="h-4 w-4" />
-            <span>Verwaltung</span>
-          </div>
-        </nav>
-
-        {/* Google Spreadsheet link/settings wrapper */}
-        <div className="mt-2 pt-5 border-t border-[#E2E8F0] dark:border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider">Tabelle</span>
-            {spreadsheetId ? (
-              <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Verbunden
-              </span>
-            ) : (
-              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">Unverknüpft</span>
+            {!isSidebarCollapsed && (
+              <div>
+                <h1 className="text-base font-bold text-[#1E293B] dark:text-slate-100 tracking-tight leading-none">SyncSheet</h1>
+                <span className="text-[10px] text-slate-300 font-mono leading-none">Bewerbungs-Tracker</span>
+              </div>
             )}
           </div>
-
-          {spreadsheetId ? (
-            <div className="space-y-3 bg-[#F8FAFC] dark:bg-slate-950 rounded-lg p-3.5 border border-[#E2E8F0] dark:border-slate-800">
-              <div className="text-xs font-bold text-[#1E293B] dark:text-slate-100 flex items-center gap-1.5 truncate">
-                <FileSpreadsheet className="h-4 w-4 text-emerald-500 shrink-0" />
-                <span>{spreadsheetTitle || "Google Tabelle"}</span>
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="hidden lg:flex items-center justify-center h-6 w-6 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+          >
+            {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        </div>
+        <nav className="space-y-1 mb-8">
+          <div
+            onClick={() => { if (isSidebarCollapsed) setIsSidebarCollapsed(false); }}
+            className={`flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2 rounded-lg text-sm font-medium bg-blue-500/10 border border-blue-500/15 text-blue-400 cursor-pointer`}
+            title={isSidebarCollapsed ? "Verwaltung öffnen" : undefined}
+          >
+            <Table className="h-4 w-4 shrink-0" />
+            {!isSidebarCollapsed && <span>Verwaltung</span>}
+          </div>
+        </nav>
+        {isSidebarCollapsed ? (
+          <div className="mt-2 pt-5 border-t border-white/5 flex flex-col items-center gap-4">
+            <div
+              onClick={() => {
+                setIsSidebarCollapsed(false);
+                if (spreadsheetId) {
+                  setShowBindInput(true);
+                }
+              }}
+              className="relative group cursor-pointer"
+              title={spreadsheetId ? `Verbunden mit: ${spreadsheetTitle}. Klicken zum Verknüpfen/Wechseln.` : "Tabelle verknüpfen"}
+            >
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center border ${spreadsheetId ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400" : "bg-amber-500/10 border-amber-500/25 text-amber-400"}`}>
+                <FileSpreadsheet className="h-4.5 w-4.5" />
               </div>
-              <div className="text-[9px] font-mono select-all bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-1.5 rounded truncate text-[#64748B] dark:text-slate-400">
-                ID: {spreadsheetId}
-              </div>
-              <a 
-                href={`https://docs.google.com/spreadsheets/d/${spreadsheetId}`} 
-                target="_blank" 
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[#2563EB] dark:text-blue-400 hover:underline"
-              >
-                In Google Drive öffnen <ExternalLink className="h-3 w-3" />
-              </a>
-
-              {/* Direct Switch Sheet feature - satisfy "erstelle einen button damit ich andere google sheet auswählen kann" */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBindInput(!showBindInput);
-                  setShowDisconnectConfirm(false);
-                }}
-                className="w-full text-center py-1.5 text-[11px] font-semibold border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#1E293B] dark:text-slate-200 rounded-md transition duration-150 cursor-pointer flex items-center justify-center gap-1"
-              >
-                <Link2 className="h-3.5 w-3.5 text-[#2563EB] dark:text-blue-400" /> Tabelle wechseln
-              </button>
-
-              {showBindInput && (
-                <div className="pt-2 border-t border-[#E2E8F0] dark:border-slate-800 space-y-1.5 text-left">
-                  <label className="text-[10px] font-bold text-[#64748B] dark:text-slate-400 uppercase block">Sheets-ID oder URL</label>
-                  <div className="flex gap-1.5">
-                    <input 
-                      type="text" 
-                      placeholder="Neue ID oder URL" 
-                      value={customSpreadsheetId}
-                      onChange={(e) => setCustomSpreadsheetId(e.target.value)}
-                      className="flex-grow bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-2 py-1 text-[11px] font-mono text-[#1E293B] dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500 min-w-0"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleBindCustomSheet}
-                      className="bg-[#2563EB] dark:bg-blue-600 text-white hover:bg-blue-700 font-semibold px-2.5 py-1 rounded-lg text-xs flex items-center cursor-pointer shrink-0"
-                    >
-                      Links
-                    </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-2 pt-5 border-t border-[#E2E8F0] dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Tabelle</span>
+              {spreadsheetId ? <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Verbunden</span> : <span className="text-[10px] font-bold text-amber-400">Unverknüpft</span>}
+            </div>
+            {spreadsheetId ? (
+              <div className="space-y-3 bg-slate-950/40 backdrop-blur-md rounded-xl p-3.5 border border-white/5">
+                <div className="text-xs font-bold text-slate-100 flex items-center gap-1.5 truncate"><FileSpreadsheet className="h-4 w-4 text-emerald-500 shrink-0" /><span>{spreadsheetTitle || "Google Tabelle"}</span></div>
+                <div className="text-[9px] font-mono select-all bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-1.5 rounded truncate text-slate-300">ID: {spreadsheetId}</div>
+                <button type="button" onClick={() => setShowBindInput(!showBindInput)} className="w-full text-center py-1.5 text-[11px] font-semibold border border-white/5 bg-slate-900 hover:bg-slate-850 text-slate-200 rounded-md transition duration-150 cursor-pointer flex items-center justify-center gap-1"><Link2 className="h-3.5 w-3.5 text-blue-400" /> Tabelle wechseln</button>
+                {showBindInput && (
+                  <div className="pt-2 border-t border-[#E2E8F0] dark:border-slate-800 space-y-1.5 text-left">
+                    <label className="text-[10px] font-bold text-slate-300 uppercase block">Sheets-ID oder URL</label>
+                    <div className="flex gap-1.5">
+                      <input type="text" placeholder="Neue ID oder URL" value={customSpreadsheetId} onChange={(e) => setCustomSpreadsheetId(e.target.value)} className="flex-grow bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-2 py-1 text-[11px] font-mono text-[#1E293B] dark:text-slate-205 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500 min-w-0" />
+                      <button type="button" onClick={handleBindCustomSheet} className="bg-[#2563EB] dark:bg-blue-600 text-white hover:bg-blue-700 font-semibold px-2.5 py-1 rounded-lg text-xs flex items-center cursor-pointer shrink-0">Links</button>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Secure in-app confirmation workflow for disconnecting */}
-              {!showDisconnectConfirm ? (
+                )}
                 <button
-                  onClick={() => {
-                    setShowDisconnectConfirm(true);
-                    setShowBindInput(false);
-                  }}
-                  className="w-full text-center py-1.5 text-[11px] font-medium border border-red-250 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 hover:bg-red-100/80 dark:hover:bg-red-900/60 text-red-700 dark:text-red-400 rounded-md transition duration-150 cursor-pointer"
+                  onClick={() => triggerConfirm({
+                    title: "Verbindung trennen",
+                    message: "Möchten Sie die Verbindung zur aktuellen Google-Tabelle wirklich trennen?",
+                    confirmText: "Ja, trennen",
+                    type: "danger",
+                    onConfirm: () => {
+                      setSpreadsheetId("");
+                      setCustomSpreadsheetId("");
+                      localStorage.removeItem(`spreadsheet_${user?.uid}`);
+                      setApplications([]);
+                      setEmailUpdates([]);
+                      setIsInboxScanned(false);
+                      triggerToast("success", "Getrennt.");
+                    }
+                  })}
+                  className="w-full text-center py-1.5 text-[11px] font-medium border border-white/5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-md transition duration-150 cursor-pointer"
                 >
                   Verbindung trennen
                 </button>
-              ) : (
-                <div className="pt-2 border-t border-red-100 dark:border-red-900/60 space-y-2 text-center bg-red-50/50 dark:bg-red-950/20 p-2 rounded-lg">
-                  <span className="text-[10px] font-bold text-red-700 dark:text-red-400 block leading-tight">Tabelle wirklich trennen?</span>
-                  <div className="flex gap-1.5 justify-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSpreadsheetId("");
-                        setCustomSpreadsheetId("");
-                        localStorage.removeItem(`spreadsheet_${user?.uid}`);
-                        setApplications([]);
-                        setEmailUpdates([]);
-                        setIsInboxScanned(false);
-                        localStorage.removeItem("offline_applications");
-                        if (user) {
-                          localStorage.removeItem(`dismissed_emails_${user.uid}`);
-                        }
-                        triggerToast("success", "Verbindung getrennt & Dashboard zurückgesetzt.");
-                        setShowDisconnectConfirm(false);
-                      }}
-                      className="bg-red-600 hover:bg-red-700 text-white font-bold px-2.5 py-1 rounded text-[10px] cursor-pointer"
-                    >
-                      Ja, trennen
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowDisconnectConfirm(false)}
-                      className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium px-2.5 py-1 rounded text-[10px] cursor-pointer"
-                    >
-                      Abbrechen
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-[11px] text-[#64748B] dark:text-slate-400 leading-relaxed">
-                Verknüpfen Sie eine Tabelle, um Gmail-Daten zu protokollieren.
               </div>
-
-              {/* TWO SEPARATE INTUITIVE BUTTONS */}
-              <div className="space-y-2">
-                <button
-                  onClick={handleCreateSheet}
-                  disabled={isCreatingSheet}
-                  className="w-full justify-center flex items-center gap-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg text-xs shadow-sm transition duration-150 disabled:opacity-50 cursor-pointer"
-                >
-                  {isCreatingSheet ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 animate-spin text-white" /> Erstelle...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-3.5 w-3.5" /> Neue Tabelle erstellen
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowBindInput(!showBindInput)}
-                  className="w-full justify-center flex items-center gap-1.5 bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 text-[#1E293B] font-medium py-2 px-3 rounded-lg text-xs shadow-sm transition duration-150 cursor-pointer"
-                >
-                  <Link2 className="h-3.5 w-3.5 text-[#64748B] dark:text-slate-400" /> Bestehende Tabelle verknüpfen
-                </button>
-              </div>
-
-              {showBindInput && (
-                <div className="pt-2 border-t border-[#E2E8F0] dark:border-slate-800 space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#64748B] dark:text-slate-400 uppercase block">Sheets-URL oder ID eingeben</label>
-                  <div className="flex gap-1.5">
-                    <input 
-                      type="text" 
-                      placeholder="Tabellen-ID oder URL" 
-                      value={customSpreadsheetId}
-                      onChange={(e) => setCustomSpreadsheetId(e.target.value)}
-                      className="flex-grow bg-white dark:bg-slate-950 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#1E293B] dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleBindCustomSheet}
-                      className="bg-[#1E293B] dark:bg-blue-600 text-white hover:bg-[#334155] dark:hover:bg-blue-700 font-semibold px-2.5 py-1.5 rounded-lg text-xs flex items-center cursor-pointer"
-                    >
-                      Binden
-                    </button>
-                  </div>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 leading-normal block">
-                    Unterstützt komplette Google-Sheets URLs (aus der Browser-Suchleiste kopiert).
-                  </span>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-[11px] text-slate-300 leading-relaxed">Verknüpfen Sie eine Tabelle, um Gmail-Daten zu protokollieren.</div>
+                <div className="space-y-2">
+                  <button onClick={handleCreateSheet} disabled={isCreatingSheet} className="w-full justify-center flex items-center gap-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg text-xs shadow-sm transition duration-150 disabled:opacity-50 cursor-pointer">{isCreatingSheet ? <RefreshCw className="h-3 w-3 animate-spin text-white" /> : <><Plus className="h-3.5 w-3.5" /> Neue Tabelle erstellen</>}</button>
+                  <button type="button" onClick={() => setShowBindInput(!showBindInput)} className="w-full justify-center flex items-center gap-1.5 bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 text-[#1E293B] font-medium py-2 px-3 rounded-lg text-xs shadow-sm transition duration-150 cursor-pointer"><Link2 className="h-3.5 w-3.5 text-slate-300" /> Bestehende Tabelle verknüpfen</button>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* CSV Import Drag-Drop Zone Card - KIS design */}
-        <div className="mt-5 pt-5 border-t border-[#E2E8F0] dark:border-slate-800 space-y-2.5">
-          <span className="text-xs font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block">Importieren / Excel / CSV</span>
-          <div 
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={async (e) => {
-              e.preventDefault();
-              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                const file = e.dataTransfer.files[0];
-                const text = await file.text();
-                await handleCsvFileParse(text);
-              }
-            }}
-            className="border-2 border-dashed border-[#E2E8F0] dark:border-slate-800 hover:border-blue-500 hover:bg-slate-50/50 dark:hover:bg-slate-950/40 rounded-xl p-4 text-center cursor-pointer transition relative"
-          >
-            <input 
-              type="file" 
-              accept=".csv,.txt"
-              onChange={async (e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  const file = e.target.files[0];
-                  const text = await file.text();
-                  await handleCsvFileParse(text);
-                }
-              }}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-            />
-            <FileSpreadsheet className="h-6 w-6 text-slate-400 dark:text-slate-600 mx-auto mb-1.5" />
-            <span className="text-xs font-semibold text-[#1E293B] dark:text-slate-200 block">CSV ablegen</span>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Klicken zum Upload</span>
-          </div>
-
-          {applications.length > 0 && (
-            <button
-              onClick={() => {
-                if (window.confirm("Möchten Sie alle lokal importierten bzw. offline angezeigten Bewerbungsdaten vom Dashboard löschen?")) {
-                  setApplications([]);
-                  setEmailUpdates([]);
-                  setIsInboxScanned(false);
-                  localStorage.removeItem("offline_applications");
-                  if (user) {
-                    localStorage.removeItem(`dismissed_emails_${user.uid}`);
-                  }
-                  triggerToast("success", "Importierte Bewerbungen entfernt & Dashboard gelöscht.");
-                }
-              }}
-              className="w-full text-center py-2 text-[11px] font-semibold border border-rose-250 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100/60 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 rounded-md transition duration-150 cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <Trash2 className="h-4 w-4 text-rose-500" /> CSV / Daten entfernen
-            </button>
-          )}
-        </div>
-
-        {/* Account status info card */}
-        <div className="mt-auto pt-6 border-t border-[#E2E8F0] dark:border-slate-800">
-          <div className="text-[11px] font-semibold text-[#64748B] dark:text-slate-400 uppercase tracking-wider">Benutzer</div>
-          <div className="font-bold text-sm text-[#1E293B] dark:text-slate-105 mt-1 truncate">{user?.displayName || "Majd Almotaem"}</div>
-          <div className="text-[11px] text-[#64748B] dark:text-slate-400 font-mono truncate">{user?.email}</div>
-          
-          <button 
-            id="sign-out-button"
-            onClick={handleSignOut}
-            className="mt-4 w-full flex items-center justify-center gap-1.5 py-2 border border-[#E2E8F0] dark:border-slate-800 rounded-lg text-xs font-medium text-[#64748B] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition duration-150 cursor-pointer"
-          >
-            <LogOut className="h-3.5 w-3.5" /> Log Out
-          </button>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT SPACE AREA */}
-      <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto">
-        
-        {!spreadsheetId && (
-          <div className="flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 rounded-xl p-4 border border-amber-200 dark:border-amber-900/60 transition-colors">
-            <AlertCircle className="h-4.5 w-4.5 text-amber-500 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-bold m-0">Google-Tabelle nicht verknüpft</p>
-              <p className="text-[11px] text-amber-700 dark:text-amber-400 m-0">
-                Bitte erstellen Sie eine neue Google-Tabelle oder verknüpfen Sie ein bestehendes Sheet über die ID oder URL in der linken Seitenleiste, um Ihre Gmail-Nachrichten zu synchronisieren.
-              </p>
-            </div>
+              </div>
+            )}
           </div>
         )}
+        {!isSidebarCollapsed && (
+          <div className="mt-5 pt-5 border-t border-[#E2E8F0] dark:border-slate-800 space-y-2.5">
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Importieren / Excel / CSV</span>
+            <div onDragOver={(e) => e.preventDefault()} onDrop={async (e) => { e.preventDefault(); if (e.dataTransfer.files) handleCsvFileParse(await e.dataTransfer.files[0].text()); }} className="relative border-2 border-dashed border-[#E2E8F0] dark:border-slate-800 rounded-xl p-4 text-center cursor-pointer transition">
+              <input type="file" onChange={async (e) => { if (e.target.files) handleCsvFileParse(await e.target.files[0].text()); }} className="absolute inset-0 opacity-0 cursor-pointer" />
+              <FileSpreadsheet className="h-6 w-6 text-slate-400 mx-auto mb-1.5" />
+              <span className="text-xs font-semibold text-[#1E293B] dark:text-slate-200 block">CSV ablegen</span>
+            </div>
+            {applications.length > 0 && (
+              <button onClick={() => triggerConfirm({ title: "Daten entfernen", message: "Alle Daten löschen?", confirmText: "Löschen", type: "danger", onConfirm: () => { setApplications([]); localStorage.removeItem("offline_applications"); } })} className="w-full text-center py-2 text-[11px] font-semibold border border-white/5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-md transition cursor-pointer flex items-center justify-center gap-1.5"><Trash2 className="h-4 w-4 text-slate-400" /> CSV / Daten entfernen</button>
+            )}
+          </div>
+        )}
+        {isSidebarCollapsed ? (
+          <div className="mt-auto pt-6 border-t border-white/5 flex flex-col items-center gap-4">
+            <button
+              onClick={() => triggerConfirm({
+                title: "Abmelden",
+                message: "Möchten Sie sich wirklich abmelden?",
+                confirmText: "Abmelden",
+                type: "warning",
+                onConfirm: handleSignOut
+              })}
+              className="h-8 w-8 rounded-lg flex items-center justify-center border border-white/5 text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              title="Abmelden"
+            >
+              <LogOut className="h-4.5 w-4.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="mt-auto pt-6 border-t border-[#E2E8F0] dark:border-slate-800">
+            <div className="text-[11px] font-semibold text-slate-355 uppercase tracking-wider">Benutzer</div>
+            <div className="font-bold text-sm text-[#1E293B] dark:text-slate-105 mt-1 truncate">{user?.displayName || "User"}</div>
+            <div className="text-[11px] text-slate-300 font-mono truncate">{user?.email}</div>
+            <button
+              id="sign-out-button"
+              onClick={() => triggerConfirm({
+                title: "Abmelden",
+                message: "Möchten Sie sich wirklich abmelden?",
+                confirmText: "Abmelden",
+                type: "warning",
+                onConfirm: handleSignOut
+              })}
+              className="mt-4 w-full flex items-center justify-center gap-1.5 py-2 border border-[#E2E8F0] dark:border-slate-800 rounded-lg text-xs font-medium text-[#64748B] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition duration-150 cursor-pointer"
+            >
+              <LogOut className="h-3.5 w-3.5" /> Log Out
+            </button>
+          </div>
+        )}
+      </aside>
 
-        {/* Dynamic header row */}
+      <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto">
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1E293B] dark:text-slate-100 m-0">Übersicht & Automation</h2>
-            <p className="text-sm text-[#64748B] dark:text-slate-400 mt-1 m-0">
-              Automatische Synchronisation aus Gmail in die Google-Tabelle.
-            </p>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white m-0">Übersicht & Automation</h2>
+            <p className="text-sm text-slate-400 mt-1 m-0">Automatische Synchronisation aus Gmail in die Google-Tabelle.</p>
           </div>
-
           <div className="flex shrink-0 items-center gap-3">
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#1E293B] dark:text-slate-200 font-medium py-1.5 px-4 rounded-lg text-sm shadow-sm transition duration-150 flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="h-4 w-4" /> Eintrag hinzufügen
-            </button>
-
-            <button
-              id="scan-button"
-              onClick={handleScanInboxAndAnalyze}
-              disabled={isScanning || !spreadsheetId}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-1.5 px-4 rounded-lg text-sm shadow-sm transition duration-150 flex items-center gap-1.5 cursor-pointer"
-            >
-              {isScanning ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" /> Analysiere...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" /> Gmail synchronisieren
-                </>
-              )}
-            </button>
+            <button onClick={() => setShowAddForm(!showAddForm)} className="bg-slate-800 border border-white/5 hover:bg-slate-700 text-white font-medium py-1.5 px-4 rounded-lg text-sm shadow-sm transition flex items-center gap-1.5 cursor-pointer"><Plus className="h-4 w-4" /> Eintrag hinzufügen</button>
+            <button id="scan-button" onClick={handleScanInboxAndAnalyze} disabled={isScanning || !spreadsheetId} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-4 rounded-lg text-sm shadow-sm transition flex items-center gap-1.5 cursor-pointer">{isScanning ? <><RefreshCw className="h-4 w-4 animate-spin" /> Analysiere...</> : <><Sparkles className="h-4 w-4" /> Gmail synchronisieren</>}</button>
           </div>
         </header>
 
-        {/* Elegant statistical widgets grids row */}
+        {/* Dashboard Stat Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          
           <div className="professional-card p-5 flex flex-col justify-between">
             <div>
-              <span className="text-[11px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block">Verarbeitete Bewerbungen</span>
-              <span className="text-3xl font-bold text-[#1E293B] dark:text-slate-100 block mt-2">{applications.length}</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Verarbeitete Bewerbungen</span>
+              <span className="text-3xl font-bold text-slate-100 block mt-2">{applications.length}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#059669] dark:text-emerald-400 mt-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] inline-block"></span> 
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 mt-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
               Tabelle synchron
             </div>
           </div>
 
           <div className="professional-card p-5 flex flex-col justify-between">
             <div>
-              <span className="text-[11px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block">Aktive Interviews</span>
-              <span className="text-3xl font-bold text-amber-600 dark:text-amber-400 block mt-2">{metrics.interviewing}</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Aktive Interviews</span>
+              <span className="text-3xl font-bold text-amber-500 dark:text-amber-400 block mt-2">{metrics.interviewing}</span>
             </div>
-            <div className="text-xs text-[#64748B] dark:text-slate-400 mt-3 flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" /> Kalendervorbereitung nötig
-            </div>
-          </div>
-
-          <div className="professional-card p-5 flex flex-col justify-between">
-            <div>
-              <span className="text-[11px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block">Angebote erhalten</span>
-              <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 block mt-2">{metrics.offers}</span>
-            </div>
-            <div className="text-xs text-[#64748B] dark:text-slate-400 mt-3 flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold bg-[#DCFCE7] dark:bg-emerald-950/30 px-2 py-0.5 rounded-full w-max">
-              <Sparkles className="w-3.5 h-3.5" /> Herzlichen Glückwunsch!
+            <div className="text-xs text-slate-400 mt-3 flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-amber-400" /> Kalendervorbereitung nötig
             </div>
           </div>
 
           <div className="professional-card p-5 flex flex-col justify-between">
             <div>
-              <span className="text-[11px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider block">Absagen</span>
-              <span className="text-3xl font-bold text-slate-500 dark:text-slate-400 block mt-2">{metrics.rejected}</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Angebote erhalten</span>
+              <span className="text-3xl font-bold text-emerald-400 dark:text-emerald-450 block mt-2">{metrics.offers}</span>
             </div>
-            <div className="text-xs text-[#64748B] dark:text-slate-400 mt-3 flex items-center gap-1">
+            <div className="text-xs text-emerald-400 mt-3 flex items-center gap-1.5 font-semibold bg-emerald-950/30 px-2 py-0.5 rounded-full w-max">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Herzlichen Glückwunsch!
+            </div>
+          </div>
+
+          <div className="professional-card p-5 flex flex-col justify-between">
+            <div>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Absagen</span>
+              <span className="text-3xl font-bold text-rose-500 dark:text-rose-450 block mt-2">{metrics.rejected}</span>
+            </div>
+            <div className="text-xs text-slate-400 mt-3 flex items-center gap-1">
               Statistik-Übersicht
             </div>
           </div>
-
         </div>
 
-        {/* Email parsed updates display widget */}
         {isInboxScanned && (
-          <div className="professional-card p-6">
-            <div className="border-b border-[#E2E8F0] dark:border-slate-800 pb-4 mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[#1E293B] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-2">
-                <Mail className="h-4 w-4 text-[#2563EB] dark:text-blue-500" />
-                Erkannte Bewerbungs-Mails ({emailUpdates.length})
-              </h3>
-              <span className="text-xs text-[#64748B] dark:text-slate-400 font-mono bg-slate-50 dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700 px-2 py-0.5 rounded">
-                Gefiltert in dieser Sitzung
-              </span>
+          <div className="space-y-4">
+            <div className="pb-2 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider m-0 flex items-center gap-2"><Mail className="h-4 w-4 text-blue-400" /> Erkannte Bewerbungs-Mails ({emailUpdates.length})</h3>
+              <span className="text-xs text-slate-300 font-mono bg-slate-900 border border-white/5 px-2 py-0.5 rounded">Gefiltert in dieser Sitzung</span>
             </div>
-
             {emailUpdates.length > 0 ? (
               <div className="space-y-4">
-                {/* 1. Neue Bewerbung Category */}
                 {(() => {
                   const neueBewerbungen = emailUpdates.filter(up => up.classification !== "Statuswechsel");
                   const count = neueBewerbungen.length;
                   return (
-                    <div className="border border-[#E2E8F0] dark:border-slate-800 rounded-xl overflow-hidden bg-[#F8FAFC]/30 dark:bg-slate-900/20">
-                      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between bg-[#F8FAFC]/80 dark:bg-slate-900/60 px-4 py-3 border-b border-[#E2E8F0] dark:border-slate-800 gap-2 select-none">
-                        <button
-                          type="button"
-                          onClick={() => setIsNeueExpanded(!isNeueExpanded)}
-                          className="flex items-center gap-2 text-xs font-bold text-[#1E293B] dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer"
-                        >
+                    <div className="border border-white/5 rounded-xl overflow-hidden bg-slate-900/10">
+                      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900/40 px-4 py-3 border-b border-white/5 gap-2 select-none">
+                        <button type="button" onClick={() => setIsNeueExpanded(!isNeueExpanded)} className="flex items-center gap-2 text-xs font-bold text-slate-100 bg-transparent border-none outline-none cursor-pointer">
                           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
                           <span>Neue Bewerbung ({count})</span>
-                          {isNeueExpanded ? <ChevronUp className="h-4 w-4 text-[#64748B]" /> : <ChevronDown className="h-4 w-4 text-[#64748B]" />}
+                          {isNeueExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                         </button>
                         {count > 0 && (
                           <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleRejectAll(neueBewerbungen)}
-                              className="text-[10px] text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 border border-rose-500/20 font-bold px-2 py-1 rounded-md transition duration-150 cursor-pointer"
-                            >
-                              Alle verwerfen
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleAcceptAll(neueBewerbungen)}
-                              className="text-[10px] text-white bg-emerald-600 hover:bg-emerald-700 font-bold px-2 py-1 rounded-md transition duration-150 cursor-pointer"
-                            >
-                              Alle übernehmen
-                            </button>
+                            <button type="button" onClick={() => handleRejectAll(neueBewerbungen)} className="text-[10px] text-slate-300 bg-slate-900 hover:bg-slate-800 border border-white/5 font-bold px-2.5 py-1 rounded-md transition duration-150 cursor-pointer">Alle verwerfen</button>
+                            <button type="button" onClick={() => handleAcceptAll(neueBewerbungen)} className="text-[10px] text-white bg-blue-600 hover:bg-blue-700 font-bold px-2.5 py-1 rounded-md transition duration-150 cursor-pointer">Alle übernehmen</button>
                           </div>
                         )}
                       </div>
-
                       {isNeueExpanded && (
-                        <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto">
-                          {count > 0 ? (
-                            neueBewerbungen.map((update, idx) => {
-                              const dupMatch = getCompanyMatch(update.company);
-                              return (
-                                <div key={update.emailId || `neue-${idx}`} className="border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-4 bg-[#F8FAFC] dark:bg-slate-900 text-left">
-                                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
-                                    <div>
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-sm font-bold text-[#1E293B] dark:text-slate-100">{update.company}</span>
-                                        <span className="text-[#64748B] dark:text-slate-555 inline-block">&bull;</span>
-                                        <span className="text-xs font-semibold text-[#1E293B] dark:text-slate-205">{update.role}</span>
-                                        <span className="text-[#64748B] dark:text-slate-555 inline-block">&bull;</span>
-                                        <span className="text-xs text-[#64748B] dark:text-slate-400 flex items-center gap-1">
-                                          <MapPin className="h-3 w-3" /> {update.location}
-                                        </span>
-                                        <span className="text-[#64748B] dark:text-slate-555 inline-block">&bull;</span>
-                                        <span className="text-xs text-[#64748B] dark:text-slate-400 flex items-center gap-1">
-                                          <Briefcase className="h-3 w-3" /> {update.anstellungsart}
-                                        </span>
-                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md border ${getStatusColorClass(update.status)}`}>
-                                          {update.status}
-                                        </span>
-                                      </div>
-                                      <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-1.5">Datum: {update.date}</p>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      {update.synced ? (
-                                        <span className="text-[#059669] dark:text-[#34D399] px-2.5 py-1 text-xs font-semibold rounded bg-[#DCFCE7] dark:bg-emerald-950/40 flex items-center gap-1">
-                                          <CheckCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-450" /> Übernommen
-                                        </span>
-                                        ) : (
-                                        <>
-                                            <a
-                                              href={`https://mail.google.com/mail/u/0/#all/${update.emailId}`}
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              className="text-[10px] text-[#2563EB] hover:underline flex items-center gap-1 px-2 py-1"
-                                            >
-                                              <Mail className="h-3.5 w-3.5" />
-                                              Email öffnen
-                                            </a>
-                                            <div className="w-px h-4 bg-[#E2E8F0] dark:bg-slate-800" />
-                                          <button
-                                            onClick={() => handleRefuseEmailUpdate(update.emailId)}
-                                            disabled={syncingEmailId === update.emailId}
-                                            className="bg-transparent hover:bg-rose-500/10 text-rose-500 hover:text-rose-600 border border-rose-500/20 disabled:opacity-50 text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition select-none"
-                                          >
-                                            <XCircle className="h-3.5 w-3.5" />
-                                            Verwerfen
-                                          </button>
-                                          <button
-                                            onClick={() => handleAcceptEmailChange(update)}
-                                            disabled={syncingEmailId === update.emailId}
-                                            className="bg-[#2563EB] hover:bg-blue-700 text-white disabled:opacity-50 text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition select-none"
-                                          >
-                                            {syncingEmailId === update.emailId ? (
-                                              <RefreshCw className="h-3 w-3 animate-spin text-white" />
-                                            ) : (
-                                              <FileSpreadsheet className="h-3.5 w-3.5" />
-                                            )}
-                                            {dupMatch ? "Trotzdem anlegen" : "Eintragen"}
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {dupMatch && (
-                                    <div className="mb-3 text-xs flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg">
-                                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                                      <span>
-                                        Eintrag existiert bereits mit Rolle: "{dupMatch.role}". Bitte prüfen Sie Duplikate vor Freigabe.
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  <div className="bg-white dark:bg-slate-950 rounded-lg p-3 text-xs text-[#1E293B] dark:text-slate-200 space-y-1.5 border border-[#E2E8F0] dark:border-slate-800 shadow-sm">
-                                    <div>
-                                      <span className="font-bold text-[#64748B] dark:text-slate-400">Betreff:</span> <span className="font-medium">{update.subject}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-bold text-[#64748B] dark:text-slate-400">Zusammenfassung:</span> <span className="italic">"{update.summary}"</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-bold text-[#64748B] dark:text-slate-400">Empfohlene Aktion:</span> <span className="text-[#2563EB] dark:text-blue-400 font-semibold">{update.suggestedAction}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 italic text-center py-4">Keine Mails in dieser Kategorie.</p>
-                          )}
+                        <div className="p-4 space-y-3 max-h-[400px] overflow-y-auto">
+                          {count > 0 ? neueBewerbungen.map((update, idx) => renderEmailUpdateRow(update, false)) : <p className="text-xs text-slate-500 italic text-center py-4">Keine Mails in dieser Kategorie.</p>}
                         </div>
                       )}
                     </div>
                   );
                 })()}
-
-                {/* 2. Statusänderung Category */}
                 {(() => {
                   const statusAenderungen = emailUpdates.filter(up => up.classification === "Statuswechsel");
                   const count = statusAenderungen.length;
                   return (
-                    <div className="border border-[#E2E8F0] dark:border-slate-800 rounded-xl overflow-hidden bg-[#F8FAFC]/30 dark:bg-slate-900/20">
-                      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between bg-[#F8FAFC]/80 dark:bg-slate-900/60 px-4 py-3 border-b border-[#E2E8F0] dark:border-slate-800 gap-2 select-none">
-                        <button
-                          type="button"
-                          onClick={() => setIsStatusExpanded(!isStatusExpanded)}
-                          className="flex items-center gap-2 text-xs font-bold text-[#1E293B] dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer"
-                        >
+                    <div className="border border-white/5 rounded-xl overflow-hidden bg-slate-900/10">
+                      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900/40 px-4 py-3 border-b border-white/5 gap-2 select-none">
+                        <button type="button" onClick={() => setIsStatusExpanded(!isStatusExpanded)} className="flex items-center gap-2 text-xs font-bold text-slate-100 bg-transparent border-none outline-none cursor-pointer">
                           <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
                           <span>Statusänderung ({count})</span>
-                          {isStatusExpanded ? <ChevronUp className="h-4 w-4 text-[#64748B]" /> : <ChevronDown className="h-4 w-4 text-[#64748B]" />}
+                          {isStatusExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                         </button>
                         {count > 0 && (
                           <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleRejectAll(statusAenderungen)}
-                              className="text-[10px] text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 border border-rose-500/20 font-bold px-2 py-1 rounded-md transition duration-150 cursor-pointer"
-                            >
-                              Alle verwerfen
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleAcceptAll(statusAenderungen)}
-                              className="text-[10px] text-white bg-[#2563EB] hover:bg-blue-700 font-bold px-2 py-1 rounded-md transition duration-150 cursor-pointer"
-                            >
-                              Alle übernehmen
-                            </button>
+                            <button type="button" onClick={() => handleRejectAll(statusAenderungen)} className="text-[10px] text-slate-300 bg-slate-900 hover:bg-slate-800 border border-white/5 font-bold px-2.5 py-1 rounded-md transition duration-150 cursor-pointer">Alle verwerfen</button>
+                            <button type="button" onClick={() => handleAcceptAll(statusAenderungen)} className="text-[10px] text-white bg-blue-600 hover:bg-blue-700 font-bold px-2.5 py-1 rounded-md transition duration-150 cursor-pointer">Alle übernehmen</button>
                           </div>
                         )}
                       </div>
-
                       {isStatusExpanded && (
-                        <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto">
-                          {count > 0 ? (
-                            statusAenderungen.map((update, idx) => {
-                              const dupMatch = getCompanyMatch(update.company);
-                              return (
-                                <div key={update.emailId || `status-${idx}`} className="border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-4 bg-[#F8FAFC] dark:bg-slate-900 text-left">
-                                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
-                                    <div>
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-sm font-bold text-[#1E293B] dark:text-slate-100">{update.company}</span>
-                                        <span className="text-[#64748B] dark:text-slate-555 inline-block">&bull;</span>
-                                        <span className="text-xs font-semibold text-[#1E293B] dark:text-slate-205">{update.role}</span>
-                                        <span className="text-[#64748B] dark:text-slate-555 inline-block">&bull;</span>
-                                        <span className="text-xs text-[#64748B] dark:text-slate-400 flex items-center gap-1">
-                                          <MapPin className="h-3 w-3" /> {update.location}
-                                        </span>
-                                        <span className="text-[#64748B] dark:text-slate-555 inline-block">&bull;</span>
-                                        <span className="text-xs text-[#64748B] dark:text-slate-400 flex items-center gap-1">
-                                          <Briefcase className="h-3 w-3" /> {update.anstellungsart}
-                                        </span>
-                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md border ${getStatusColorClass(update.status)}`}>
-                                          {update.status}
-                                        </span>
-                                      </div>
-                                      <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-1.5">Datum: {update.date}</p>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      {update.synced ? (
-                                        <span className="text-[#059669] dark:text-[#34D399] px-2.5 py-1 text-xs font-semibold rounded bg-[#DCFCE7] dark:bg-emerald-950/40 flex items-center gap-1">
-                                          <CheckCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-450" /> Übernommen
-                                        </span>
-                                        ) : (
-                                        <>
-                                            <a
-                                              href={`https://mail.google.com/mail/u/0/#all/${update.emailId}`}
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              className="text-[10px] text-[#2563EB] hover:underline flex items-center gap-1 px-2 py-1"
-                                            >
-                                              <Mail className="h-3.5 w-3.5" />
-                                              Email öffnen
-                                            </a>
-                                            <div className="w-px h-4 bg-[#E2E8F0] dark:bg-slate-800" />
-                                          <button
-                                            onClick={() => handleRefuseEmailUpdate(update.emailId)}
-                                            disabled={syncingEmailId === update.emailId}
-                                            className="bg-transparent hover:bg-rose-500/10 text-rose-500 hover:text-rose-600 border border-rose-500/20 disabled:opacity-50 text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition select-none"
-                                          >
-                                            <XCircle className="h-3.5 w-3.5" />
-                                            Verwerfen
-                                          </button>
-                                          <button
-                                            onClick={() => handleAcceptEmailChange(update)}
-                                            disabled={syncingEmailId === update.emailId}
-                                            className="bg-[#2563EB] hover:bg-blue-700 text-white disabled:opacity-50 text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition select-none"
-                                          >
-                                            {syncingEmailId === update.emailId ? (
-                                              <RefreshCw className="h-3 w-3 animate-spin text-white" />
-                                            ) : (
-                                              <FileSpreadsheet className="h-3.5 w-3.5" />
-                                            )}
-                                            {dupMatch ? "Status übernehmen" : "Eintragen"}
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {dupMatch && (
-                                    <div className="mb-3 text-xs flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg">
-                                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                                      <span>
-                                        Bestehender Eintrag gefunden (Status: "{dupMatch.status}"). Klick auf "Status übernehmen" setzt Status auf "{update.status}".
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  <div className="bg-white dark:bg-slate-950 rounded-lg p-3 text-xs text-[#1E293B] dark:text-slate-200 space-y-1.5 border border-[#E2E8F0] dark:border-slate-800 shadow-sm">
-                                    <div>
-                                      <span className="font-bold text-[#64748B] dark:text-slate-400">Betreff:</span> <span className="font-medium">{update.subject}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-bold text-[#64748B] dark:text-slate-400">Zusammenfassung:</span> <span className="italic">"{update.summary}"</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-bold text-[#64748B] dark:text-slate-400">Empfohlene Aktion:</span> <span className="text-[#2563EB] dark:text-blue-400 font-semibold">{update.suggestedAction}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 italic text-center py-4">Keine Mails in dieser Kategorie.</p>
-                          )}
+                        <div className="p-4 space-y-3 max-h-[400px] overflow-y-auto">
+                          {count > 0 ? statusAenderungen.map((update) => renderEmailUpdateRow(update, true)) : <p className="text-xs text-slate-500 italic text-center py-4">Keine Mails in dieser Kategorie.</p>}
                         </div>
                       )}
                     </div>
@@ -1768,17 +1188,16 @@ export default function App() {
                 })()}
               </div>
             ) : (
-              <div className="text-center py-10 rounded-xl border border-dashed border-[#E2E8F0] dark:border-slate-800 text-[#64748B] dark:text-slate-450 bg-[#F8FAFC]/55 dark:bg-slate-900/20">
-                <Sparkles className="h-7 w-7 mx-auto mb-2.5 text-slate-350 dark:text-slate-650 animate-pulse" />
-                <p className="text-xs font-semibold text-[#1E293B] dark:text-slate-200">Keine neuen Bewerbungs-Mails gefunden</p>
+              <div className="text-center py-10 rounded-xl border border-dashed border-white/5 text-slate-400 bg-slate-900/20">
+                <Sparkles className="h-7 w-7 mx-auto mb-2.5 text-slate-500 animate-pulse" />
+                <p className="text-xs font-semibold text-slate-200">Keine neuen Bewerbungs-Mails gefunden</p>
               </div>
             )}
           </div>
         )}
-
         {/* Global Trackings list datatable grid */}
         <div id="grid-table-container" className="professional-card p-6">
-          
+
           {/* Header title controller and Search bar */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-4 mb-4 border-b border-[#E2E8F0] dark:border-slate-800 gap-4">
             <div>
@@ -1786,15 +1205,47 @@ export default function App() {
                 <Table className="h-4.5 w-4.5 text-[#2563EB] dark:text-blue-400" /> Aktuelle Bewerbungsdatenbank
               </h2>
               <p className="text-xs text-[#64748B] dark:text-slate-400 m-0">
-                Die Auswahl eines neuen Status aktualisiert direkt die Zeile in Ihrer Google-Tabelle.
+                Doppelklick zum Bearbeiten von Zellen. Klicken Sie auf "Speichern", um alle Änderungen zu übernehmen.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {selectedRowIds.size > 0 && (
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-1.5 px-3 rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer shrink-0 animate-in fade-in zoom-in-95 duration-150"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {selectedRowIds.size} Löschen
+                </button>
+              )}
+
+              {Object.keys(draftChanges).length > 0 && (
+                <div className="flex items-center gap-2 shrink-0 bg-slate-950/20 p-1 rounded-lg border border-white/5 animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    type="button"
+                    onClick={handleDiscardDraftChanges}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-1.5 px-3 rounded-md text-xs flex items-center gap-1 transition cursor-pointer"
+                  >
+                    Verwerfen
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSavingDrafts}
+                    onClick={handleSaveDraftChanges}
+                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-1.5 px-3 rounded-md text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                  >
+                    {isSavingDrafts ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
+                    Speichern
+                  </button>
+                </div>
+              )}
+
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#64748B]" />
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="Firma oder Stelle filtern..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -1811,7 +1262,7 @@ export default function App() {
                 >
                   <option value="All">Alle Status</option>
                   <option value="Applied">Applied</option>
-                  <option value="Interviewing">Interviewing</option>
+                  <option value="Interview">Interview</option>
                   <option value="Offer">Offers</option>
                   <option value="Rejected">Rejected</option>
                 </select>
@@ -1845,8 +1296,8 @@ export default function App() {
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase text-[#64748B] dark:text-slate-400 tracking-wider m-0">Bewerbung manuell erfassen</h3>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowAddForm(false)}
                   className="text-xs font-semibold text-[#2563EB] dark:text-blue-405 hover:underline"
                 >
@@ -1857,9 +1308,9 @@ export default function App() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Unternehmen *</label>
-                  <input 
-                    type="text" 
-                    placeholder="z.B. FINOVESTA GmbH" 
+                  <input
+                    type="text"
+                    placeholder="z.B. FINOVESTA GmbH"
                     value={manualCompany}
                     required
                     onChange={(e) => setManualCompany(e.target.value)}
@@ -1868,9 +1319,9 @@ export default function App() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Stelle / Rolle *</label>
-                  <input 
-                    type="text" 
-                    placeholder="z.B. Softwareentwickler" 
+                  <input
+                    type="text"
+                    placeholder="z.B. Softwareentwickler"
                     value={manualRole}
                     required
                     onChange={(e) => setManualRole(e.target.value)}
@@ -1879,9 +1330,9 @@ export default function App() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Anstellungsart</label>
-                  <input 
-                    type="text" 
-                    placeholder="z.B. Festanstellung / Vollzeit" 
+                  <input
+                    type="text"
+                    placeholder="z.B. Festanstellung / Vollzeit"
                     value={manualAnstellungsart}
                     onChange={(e) => setManualAnstellungsart(e.target.value)}
                     className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
@@ -1889,9 +1340,9 @@ export default function App() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Standort</label>
-                  <input 
-                    type="text" 
-                    placeholder="z.B. Düsseldorf, Germany" 
+                  <input
+                    type="text"
+                    placeholder="z.B. Düsseldorf, Germany"
                     value={manualLocation}
                     onChange={(e) => setManualLocation(e.target.value)}
                     className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
@@ -1908,12 +1359,14 @@ export default function App() {
                     <option value="Interviewing">Interviewing</option>
                     <option value="Offer">Offer</option>
                     <option value="Rejected">Rejected</option>
+                    <option value="Received">Received</option>
+                    <option value="Unknown">Unknown</option>
                   </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Datum</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={manualDate}
                     onChange={(e) => setManualDate(e.target.value)}
                     className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-slate-200 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
@@ -1948,149 +1401,222 @@ export default function App() {
           ) : (spreadsheetId || applications.length > 0) ? (
             filteredAndSortedApplications.length > 0 ? (
               <div className="overflow-x-auto rounded-xl border border-[#E2E8F0] dark:border-slate-800">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="w-full text-left border-collapse text-xs table-fixed">
                   <thead>
                     <tr className="professional-table-header border-b border-[#E2E8F0] dark:border-slate-800/80">
-                      <th className="p-3 text-center w-12 bg-slate-50/20 dark:bg-slate-900/10">Zeile</th>
-                      <th className="p-3">Unternehmen</th>
-                      <th className="p-3">Stelle / Rolle</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3 w-32">Bewerbungsdatum</th>
-                      <th className="p-3">Standort</th>
-                      <th className="p-3">Anstellungsart</th>
+                      <th style={{ width: columnWidths.select }} className="p-3 text-center bg-slate-50/20 dark:bg-slate-900/10">
+                        <input
+                          type="checkbox"
+                          checked={filteredAndSortedApplications.length > 0 && filteredAndSortedApplications.every(app => selectedRowIds.has(app.id))}
+                          onChange={() => handleToggleSelectAll(filteredAndSortedApplications)}
+                          className="rounded border-[#E2E8F0] dark:border-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
+                        />
+                      </th>
+                      <th style={{ width: columnWidths.id }} className="p-3 text-center bg-slate-50/20 dark:bg-slate-900/10">Zeile</th>
+                      <th style={{ width: columnWidths.company, position: 'relative' }} className="p-3 select-none">
+                        <span className="truncate block pr-2">Unternehmen</span>
+                        <div
+                          onMouseDown={(e) => startResize(e, 'company')}
+                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-10"
+                          style={{ touchAction: 'none' }}
+                        />
+                      </th>
+                      <th style={{ width: columnWidths.role, position: 'relative' }} className="p-3 select-none">
+                        <span className="truncate block pr-2">Stelle / Rolle</span>
+                        <div
+                          onMouseDown={(e) => startResize(e, 'role')}
+                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-10"
+                          style={{ touchAction: 'none' }}
+                        />
+                      </th>
+                      <th style={{ width: columnWidths.status, position: 'relative' }} className="p-3 select-none">
+                        <span className="truncate block pr-2">Status</span>
+                        <div
+                          onMouseDown={(e) => startResize(e, 'status')}
+                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-10"
+                          style={{ touchAction: 'none' }}
+                        />
+                      </th>
+                      <th style={{ width: columnWidths.date, position: 'relative' }} className="p-3 select-none">
+                        <span className="truncate block pr-2">Bewerbungsdatum</span>
+                        <div
+                          onMouseDown={(e) => startResize(e, 'date')}
+                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-10"
+                          style={{ touchAction: 'none' }}
+                        />
+                      </th>
+                      <th style={{ width: columnWidths.location, position: 'relative' }} className="p-3 select-none">
+                        <span className="truncate block pr-2">Standort</span>
+                        <div
+                          onMouseDown={(e) => startResize(e, 'location')}
+                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-10"
+                          style={{ touchAction: 'none' }}
+                        />
+                      </th>
+                      <th style={{ width: columnWidths.anstellungsart, position: 'relative' }} className="p-3 select-none">
+                        <span className="truncate block pr-2">Anstellungsart</span>
+                        <div
+                          onMouseDown={(e) => startResize(e, 'anstellungsart')}
+                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-10"
+                          style={{ touchAction: 'none' }}
+                        />
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800/60">
-                    {filteredAndSortedApplications.map((app) => (
-                      <tr key={app.id} className="bg-white dark:bg-[#111827] transition-colors">
-                        <td className="p-3.5 text-center font-mono text-[10px] text-[#64748B] dark:text-slate-400 font-bold bg-[#F8FAFC]/50 dark:bg-slate-900/40 border-r border-[#E2E8F0] dark:border-slate-800">{app.id}</td>
-                        <td
-                          className="p-3.5 font-bold text-[#1E293B] dark:text-slate-100 cursor-default"
-                          onDoubleClick={() => startEditing(app.id, "company", app.company)}
+                    {filteredAndSortedApplications.map((app) => {
+                      const isSelected = selectedRowIds.has(app.id);
+                      const hasDraft = !!draftChanges[app.id];
+                      return (
+                        <tr
+                          key={app.id}
+                          className={`${isSelected ? "bg-blue-500/5 dark:bg-blue-600/5" : "bg-white dark:bg-[#111827]"} transition-colors`}
                         >
-                          {editingCell?.id === app.id && editingCell.field === "company" ? (
+                          <td style={{ width: columnWidths.select }} className="p-3.5 text-center border-r border-[#E2E8F0] dark:border-slate-800">
                             <input
-                              autoFocus
-                              value={editingValue}
-                              onChange={(e) => setEditingValue(e.target.value)}
-                              onBlur={() => saveEditing(app.id, "company")}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") saveEditing(app.id, "company");
-                                if (e.key === "Escape") cancelEditing();
-                              }}
-                              className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleRowSelect(app.id)}
+                              className="rounded border-[#E2E8F0] dark:border-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
                             />
-                          ) : (
-                            app.company
-                          )}
-                        </td>
-                        <td
-                          className="p-3.5 font-medium text-[#64748B] dark:text-slate-300 cursor-default"
-                          onDoubleClick={() => startEditing(app.id, "role", app.role)}
-                        >
-                          {editingCell?.id === app.id && editingCell.field === "role" ? (
-                            <input
-                              autoFocus
-                              value={editingValue}
-                              onChange={(e) => setEditingValue(e.target.value)}
-                              onBlur={() => saveEditing(app.id, "role")}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") saveEditing(app.id, "role");
-                                if (e.key === "Escape") cancelEditing();
-                              }}
-                              className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
-                            />
-                          ) : (
-                            app.role
-                          )}
-                        </td>
-                        <td className="p-3.5">
-                          {updatingRowId === app.id ? (
-                            <div className="flex items-center gap-1 font-semibold text-slate-400 py-1">
-                              <RefreshCw className="h-3 w-3 animate-spin text-slate-450" /> Speichere...
-                            </div>
-                          ) : (
-                            <div className="relative inline-block w-full text-[#1E293B] dark:text-slate-200">
-                              <select
-                                id={`status-select-${app.id}`}
-                                value={app.status || "Applied"}
-                                onChange={(e) => handleUpdateStatus(app.id, e.target.value as JobApplication["status"])}
-                                onDoubleClick={() => {
-                                  const el = document.getElementById(`status-select-${app.id}`) as HTMLSelectElement | null;
-                                  if (el) el.focus();
+                          </td>
+                          <td style={{ width: columnWidths.id }} className="p-3.5 text-center font-mono text-[10px] text-[#64748B] dark:text-slate-400 font-bold bg-[#F8FAFC]/50 dark:bg-slate-900/40 border-r border-[#E2E8F0] dark:border-slate-800 relative">
+                            {app.id}
+                            {hasDraft && (
+                              <span className="absolute right-1 top-1 w-1.5 h-1.5 rounded-full bg-amber-500" title="Ungespeicherte Änderungen"></span>
+                            )}
+                          </td>
+                          <td
+                            style={{ width: columnWidths.company }}
+                            className="p-3.5 font-bold text-[#1E293B] dark:text-slate-100 cursor-default truncate overflow-hidden whitespace-nowrap"
+                            onDoubleClick={() => startEditing(app.id, "company", draftChanges[app.id]?.company ?? app.company)}
+                          >
+                            {editingCell?.id === app.id && editingCell.field === "company" ? (
+                              <input
+                                autoFocus
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={() => saveEditing(app.id, "company")}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEditing(app.id, "company");
+                                  if (e.key === "Escape") cancelEditing();
                                 }}
-                                className={`w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs font-semibold focus:outline-none cursor-pointer text-slate-800 dark:text-slate-200 ${getStatusColorClass(app.status)}`}
-                              >
-                                <option value="Applied" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Applied</option>
-                                <option value="Interviewing" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Interviewing</option>
-                                <option value="Offer" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Offer</option>
-                                <option value="Rejected" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Rejected</option>
-                              </select>
-                            </div>
-                          )}
-                        </td>
-                        <td
-                          className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default"
-                          onDoubleClick={() => startEditing(app.id, "date", app.date || "")}
-                        >
-                          {editingCell?.id === app.id && editingCell.field === "date" ? (
-                            <input
-                              autoFocus
-                              value={editingValue}
-                              onChange={(e) => setEditingValue(e.target.value)}
-                              onBlur={() => saveEditing(app.id, "date")}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") saveEditing(app.id, "date");
-                                if (e.key === "Escape") cancelEditing();
-                              }}
-                              className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
-                            />
-                          ) : (
-                            app.date
-                          )}
-                        </td>
-                        <td
-                          className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default"
-                          onDoubleClick={() => startEditing(app.id, "location", app.location || "")}
-                        >
-                          {editingCell?.id === app.id && editingCell.field === "location" ? (
-                            <input
-                              autoFocus
-                              value={editingValue}
-                              onChange={(e) => setEditingValue(e.target.value)}
-                              onBlur={() => saveEditing(app.id, "location")}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") saveEditing(app.id, "location");
-                                if (e.key === "Escape") cancelEditing();
-                              }}
-                              className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
-                            />
-                          ) : (
-                            app.location || "N/A"
-                          )}
-                        </td>
-                        <td
-                          className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default"
-                          onDoubleClick={() => startEditing(app.id, "anstellungsart", app.anstellungsart || "")}
-                        >
-                          {editingCell?.id === app.id && editingCell.field === "anstellungsart" ? (
-                            <input
-                              autoFocus
-                              value={editingValue}
-                              onChange={(e) => setEditingValue(e.target.value)}
-                              onBlur={() => saveEditing(app.id, "anstellungsart")}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") saveEditing(app.id, "anstellungsart");
-                                if (e.key === "Escape") cancelEditing();
-                              }}
-                              className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
-                            />
-                          ) : (
-                            app.anstellungsart || "N/A"
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                              />
+                            ) : (
+                              draftChanges[app.id]?.company ?? app.company
+                            )}
+                          </td>
+                          <td
+                            style={{ width: columnWidths.role }}
+                            className="p-3.5 font-medium text-[#64748B] dark:text-slate-350 cursor-default truncate overflow-hidden whitespace-nowrap"
+                            onDoubleClick={() => startEditing(app.id, "role", draftChanges[app.id]?.role ?? app.role)}
+                          >
+                            {editingCell?.id === app.id && editingCell.field === "role" ? (
+                              <input
+                                autoFocus
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={() => saveEditing(app.id, "role")}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEditing(app.id, "role");
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                              />
+                            ) : (
+                              draftChanges[app.id]?.role ?? app.role
+                            )}
+                          </td>
+                          <td style={{ width: columnWidths.status }} className="p-3.5 overflow-visible">
+                            {isSavingDrafts && draftChanges[app.id] ? (
+                              <div className="flex items-center gap-1 font-semibold text-slate-400 py-1">
+                                <RefreshCw className="h-3 w-3 animate-spin text-slate-450" /> Speichere...
+                              </div>
+                            ) : (
+                              <div className="relative inline-block w-full text-[#1E293B] dark:text-slate-200">
+                                <select
+                                  id={`status-select-${app.id}`}
+                                  value={draftChanges[app.id]?.status ?? app.status ?? "Applied"}
+                                  onChange={(e) => handleUpdateStatusDraft(app.id, e.target.value as JobApplication["status"])}
+                                  className={`w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs font-semibold focus:outline-none cursor-pointer text-slate-800 dark:text-slate-200 ${getStatusColorClass(draftChanges[app.id]?.status ?? app.status)}`}
+                                >
+                                  <option value="Applied" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Applied</option>
+                                  <option value="Interview" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Interview</option>
+                                  <option value="Offer" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Offer</option>
+                                  <option value="Rejected" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Rejected</option>
+                                  <option value="Received" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Received</option>
+                                  <option value="Unknown" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Unknown</option>
+                                </select>
+                              </div>
+                            )}
+                          </td>
+                          <td
+                            style={{ width: columnWidths.date }}
+                            className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
+                            onDoubleClick={() => startEditing(app.id, "date", draftChanges[app.id]?.date ?? app.date ?? "")}
+                          >
+                            {editingCell?.id === app.id && editingCell.field === "date" ? (
+                              <input
+                                autoFocus
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={() => saveEditing(app.id, "date")}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEditing(app.id, "date");
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                              />
+                            ) : (
+                              draftChanges[app.id]?.date ?? app.date
+                            )}
+                          </td>
+                          <td
+                            style={{ width: columnWidths.location }}
+                            className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
+                            onDoubleClick={() => startEditing(app.id, "location", draftChanges[app.id]?.location ?? app.location ?? "")}
+                          >
+                            {editingCell?.id === app.id && editingCell.field === "location" ? (
+                              <input
+                                autoFocus
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={() => saveEditing(app.id, "location")}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEditing(app.id, "location");
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                              />
+                            ) : (
+                              draftChanges[app.id]?.location ?? app.location ?? "N/A"
+                            )}
+                          </td>
+                          <td
+                            style={{ width: columnWidths.anstellungsart }}
+                            className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
+                            onDoubleClick={() => startEditing(app.id, "anstellungsart", draftChanges[app.id]?.anstellungsart ?? app.anstellungsart ?? "")}
+                          >
+                            {editingCell?.id === app.id && editingCell.field === "anstellungsart" ? (
+                              <input
+                                autoFocus
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={() => saveEditing(app.id, "anstellungsart")}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEditing(app.id, "anstellungsart");
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
+                              />
+                            ) : (
+                              draftChanges[app.id]?.anstellungsart ?? app.anstellungsart ?? "N/A"
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2115,6 +1641,61 @@ export default function App() {
         </div>
 
       </main>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-slate-900 border border-white/5 rounded-xl max-w-md w-full overflow-hidden shadow-2xl p-6 text-left"
+            >
+              <div className="flex items-start gap-4">
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${confirmModal.type === "danger"
+                    ? "bg-rose-500/10 text-rose-400"
+                    : confirmModal.type === "warning"
+                      ? "bg-amber-500/10 text-amber-400"
+                      : "bg-blue-500/10 text-blue-400"
+                  }`}>
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <h3 className="text-base font-bold text-slate-100 m-0">
+                    {confirmModal.title}
+                  </h3>
+                  <p className="text-sm text-slate-300 m-0 leading-relaxed">
+                    {confirmModal.message}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-lg text-xs transition cursor-pointer"
+                >
+                  {confirmModal.cancelText}
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmModal.onConfirm}
+                  className={`font-semibold px-4 py-2 rounded-lg text-xs transition cursor-pointer text-white ${confirmModal.type === "danger"
+                      ? "bg-rose-600 hover:bg-rose-700"
+                      : confirmModal.type === "warning"
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                  {confirmModal.confirmText}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

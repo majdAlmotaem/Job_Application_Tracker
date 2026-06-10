@@ -32,13 +32,55 @@ function decodeBase64Url(str: string): string {
 }
 
 /**
+ * Cleans HTML content, converting breaks/blocks to newlines and stripping tags.
+ */
+function cleanHtml(html: string): string {
+  let text = html.replace(/<br\s*\/?>/gi, "\n");
+  text = text.replace(/<\/(p|div|tr|h1|h2|h3|h4|h5|h6|li)>/gi, "\n");
+  text = text.replace(/<[^>]*>/g, "");
+  
+  const entities: { [key: string]: string } = {
+    "&nbsp;": " ",
+    "&amp;": "&",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&quot;": '"',
+    "&apos;": "'",
+    "&#39;": "'",
+    "&auml;": "ä",
+    "&ouml;": "ö",
+    "&uuml;": "ü",
+    "&Auml;": "Ä",
+    "&Ouml;": "Ö",
+    "&Uuml;": "Ü",
+    "&szlig;": "ß"
+  };
+  text = text.replace(/&[a-z0-9#]+;/gi, (match) => entities[match] || match);
+
+  const lines = text.split("\n").map(line => line.trim());
+  const cleanedLines: string[] = [];
+  for (const line of lines) {
+    if (line) {
+      cleanedLines.push(line);
+    } else if (cleanedLines.length > 0 && cleanedLines[cleanedLines.length - 1] !== "") {
+      cleanedLines.push("");
+    }
+  }
+  return cleanedLines.join("\n").trim();
+}
+
+/**
  * Extracts raw body text from Gmail payload structure
  */
 function extractBody(payload: any): string {
   if (!payload) return "";
   
   if (payload.body?.data) {
-    return decodeBase64Url(payload.body.data);
+    const rawData = decodeBase64Url(payload.body.data);
+    if (payload.mimeType === "text/html") {
+      return cleanHtml(rawData);
+    }
+    return rawData;
   }
 
   if (payload.parts && Array.isArray(payload.parts)) {
@@ -51,9 +93,8 @@ function extractBody(payload: any): string {
     // Fallback to testing HTML if no plain text part is found
     for (const part of payload.parts) {
       if (part.mimeType === "text/html" && part.body?.data) {
-        // Strip basic HTML elements conceptually for processing size efficiency
         const html = decodeBase64Url(part.body.data);
-        return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        return cleanHtml(html);
       }
     }
     // Deep search in nested structures

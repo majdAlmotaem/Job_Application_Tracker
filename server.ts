@@ -15,14 +15,80 @@ app.use(cors());
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
-  }
 });
 
-// API endpoint to analyze emails using Gemini Flash 3.5
+// Hilfsfunktion zur Ausführung von Gemini-Anfragen mit Exponential Backoff bei temporären Fehlern
+async function callGeminiWithRetry<T>(fn: () => Promise<T>, retries = 5, delayMs = 1000): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const status = error?.status || error?.code || (error?.statusText ? parseInt(error.statusText) : null);
+      const msg = error?.message?.toLowerCase() || "";
+      const isRetryable = 
+        status === 503 || 
+        status === 429 || 
+        msg.includes("503") || 
+        msg.includes("429") || 
+        msg.includes("unavailable") || 
+        msg.includes("high demand") || 
+        msg.includes("rate limit") || 
+        msg.includes("fetch failed") || 
+        msg.includes("socket hang up") || 
+        msg.includes("econnreset") || 
+        msg.includes("etimedout") || 
+        msg.includes("econnrefused") || 
+        msg.includes("network error");
+
+      if (isRetryable && i < retries - 1) {
+        let nextDelay = delayMs * Math.pow(2, i);
+
+        // Verzögerung bei Fehlermeldung 429 (Rate Limit) dynamisch bestimmen
+        if (status === 429 || msg.includes("429")) {
+          try {
+            const startIndex = error.message.indexOf("{");
+            if (startIndex !== -1) {
+              const jsonStr = error.message.substring(startIndex);
+              const parsedError = JSON.parse(jsonStr);
+
+              // 1. Suche nach google.rpc.RetryInfo
+              if (parsedError?.error?.details) {
+                const retryInfo = parsedError.error.details.find((d: any) => d["@type"]?.includes("RetryInfo"));
+                if (retryInfo && retryInfo.retryDelay) {
+                  const sec = parseFloat(retryInfo.retryDelay);
+                  if (!isNaN(sec)) {
+                    nextDelay = Math.ceil(sec * 1000) + 1000; // Add 1s buffer
+                  }
+                }
+              }
+
+              // 2. Fallback: Wartezeit aus Fehlermeldung parsen
+              if (parsedError?.error?.message && nextDelay < 5000) {
+                const match = parsedError.error.message.match(/Please retry in ([\d.]+)s/i);
+                if (match && match[1]) {
+                  const sec = parseFloat(match[1]);
+                  if (!isNaN(sec)) {
+                    nextDelay = Math.ceil(sec * 1000) + 1000;
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // Parsing-Fehler ignorieren, Standard-Backoff nutzen
+          }
+        }
+
+        console.warn(`Gemini API error (retryable status ${status}, attempt ${i + 1}/${retries}). Retrying in ${nextDelay}ms... Error: ${error.message}`);
+        await new Promise(resolve => setTimeout(resolve, nextDelay));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error("Gemini API call failed after retries");
+}
+
+// API-Endpunkt zur Analyse von Bewerbungs-E-Mails
 app.post("/api/analyze-emails", async (req, res) => {
   try {
     const { emails } = req.body;
@@ -46,7 +112,7 @@ Date: ${email.date || ""}
 
     const prompt = `Analyze the following emails (most are in German for the German job market) received by the user and determine if they are related to a job application.
 For each email, extract the hiring company, the job title/role (keep it in German as original, e.g. "Softwareentwickler"), estimate the current application status, the office/job location (e.g., "Düsseldorf, Germany" or "Düsseldorf, Deutschland"), the employment type (anstellungsart, e.g. "Festanstellung", "Vollzeit", "Teilzeit", "Freie Mitarbeit"), summarize the message, and offer action points.
-Only categorize an email as isJobRelated: true if it is an actual application confirmation (Applied), status update/recruiter follow-up, interview request (Interviewing), assessment, feedback, rejection (Rejected), or job offer (Offer). Standard newsletters, generic job alerts from social media, spam, or promotional material are NOT job related (isJobRelated: false).
+Only categorize an email as isJobRelated: true if it is an actual application confirmation (Applied), status update/recruiter follow-up, interview request (Interview), assessment, feedback, rejection (Rejected), or job offer (Offer). Standard newsletters, generic job alerts from social media, spam, or promotional material are NOT job related (isJobRelated: false).
 
 For each job-relevant email, you MUST classify it as:
 - 'Neue Bewerbung' if the email is a confirmation of a new application receipt (e.g., containing phrases like "wir haben deine bewerbung bekommen", "danke für deine bewerbung", "eingangsbestätigung", "vielen dank für deine bewerbung").
@@ -55,7 +121,7 @@ For each job-relevant email, you MUST classify it as:
 Emails to analyze:
 ${emailListPrompt}`;
 
-    const response = await ai.models.generateContent({
+    const response = await callGeminiWithRetry(() => ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
@@ -72,7 +138,7 @@ ${emailListPrompt}`;
               role: { type: Type.STRING, description: "The job title / role position in German if written in German (e.g., Softwareentwickler, Webentwickler, Backend-Entwickler, Unknown)." },
               status: { 
                 type: Type.STRING, 
-                description: "The estimated hiring status. Must be one of: 'Applied', 'Interviewing', 'Rejected', 'Offer', 'Received' or 'Unknown'." 
+                description: "The estimated hiring status. Must be one of: 'Applied', 'Interview', 'Rejected', 'Offer', 'Received' or 'Unknown'." 
               },
               classification: {
                 type: Type.STRING,
@@ -88,7 +154,7 @@ ${emailListPrompt}`;
           }
         }
       }
-    });
+    }));
 
     const text = response.text;
     if (!text) {
@@ -104,7 +170,7 @@ ${emailListPrompt}`;
   }
 });
 
-// Vite integration
+// Integration von Vite (Entwicklungs- und Produktionsmodus)
 async function setupVite() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

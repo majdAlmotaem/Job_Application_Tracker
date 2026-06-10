@@ -2,7 +2,7 @@ export interface JobApplication {
   id: string; // Row number in the sheet
   company: string;
   role: string; // maps to jobtitle
-  status: "Applied" | "Interviewing" | "Rejected" | "Offer" | "Received" | "Unknown";
+  status: "Applied" | "Interview" | "Rejected" | "Offer" | "Received" | "Unknown";
   date: string; // maps to applicationdate
   location?: string;
   anstellungsart?: string;
@@ -20,7 +20,7 @@ export interface EmailUpdate {
   isJobRelated: boolean;
   company: string;
   role: string; // maps to jobtitle
-  status: "Applied" | "Interviewing" | "Rejected" | "Offer" | "Received" | "Unknown";
+  status: "Applied" | "Interview" | "Rejected" | "Offer" | "Received" | "Unknown";
   location?: string;
   anstellungsart?: string;
   confidence: number;
@@ -28,6 +28,8 @@ export interface EmailUpdate {
   suggestedAction: string;
   synced: boolean;
   classification?: "Neue Bewerbung" | "Statuswechsel";
+  dismissed?: boolean;
+  body?: string;
 }
 
 export interface SpreadsheetConfig {
@@ -35,4 +37,33 @@ export interface SpreadsheetConfig {
   sheetName: string;
   status: "valid" | "not_found" | "unconfigured" | "creating";
 }
+
+export function normalizeStatus(statusStr: string | undefined | null): JobApplication["status"] {
+  if (!statusStr) return "Applied";
+  const cleaned = statusStr.trim().toLowerCase();
+  
+  if (cleaned.includes("interview") || cleaned.includes("gespräch") || cleaned.includes("gespraech") || cleaned.includes("eingeladen") || cleaned.includes("gespraech") || cleaned.includes("vorstellungsgespräch")) {
+    return "Interview";
+  }
+  if (cleaned.includes("reject") || cleaned.includes("absage") || cleaned.includes("abgelehnt") || cleaned.includes("nicht berücksichtigt") || cleaned.includes("archiviert")) {
+    return "Rejected";
+  }
+  if (cleaned.includes("offer") || cleaned.includes("angebot") || cleaned.includes("zusage") || cleaned.includes("vertrag")) {
+    return "Offer";
+  }
+  if (cleaned.includes("receive") || cleaned.includes("eingegangen") || cleaned.includes("erhalten")) {
+    return "Received";
+  }
+  if (cleaned.includes("applied") || cleaned.includes("bewerbung") || cleaned.includes("beworben") || cleaned.includes("gesendet") || cleaned.includes("offen")) {
+    return "Applied";
+  }
+  
+  // Try exact match with first letter capitalized
+  const capitalized = statusStr.trim().charAt(0).toUpperCase() + statusStr.trim().slice(1).toLowerCase();
+  if (["Applied", "Interview", "Rejected", "Offer", "Received", "Unknown"].includes(capitalized)) {
+    return capitalized as JobApplication["status"];
+  }
+  return "Unknown";
+}
+
 
