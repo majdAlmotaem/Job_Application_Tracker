@@ -7,9 +7,9 @@ from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
-async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 5, delay_ms: int = 1000) -> Dict[str, Any]:
+async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, delay_ms: int = 2000) -> Dict[str, Any]:
     """
     Executes a Gemini API request with exponential backoff for rate limits (429) or server errors (503).
     """
@@ -28,6 +28,13 @@ async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 5, dela
                 if response.status_code in [429, 503]:
                     status = response.status_code
                     msg = response.text.lower()
+                    
+                    if i == retries - 1:
+                        if status == 429:
+                            raise Exception("Gemini API rate limit exceeded. Please try again in a minute.")
+                        else:
+                            raise Exception(f"Gemini API returned server error status {status} after retries.")
+                            
                     next_delay = (delay_ms * (2 ** i)) / 1000.0  # Convert to seconds
                     
                     # Try to parse wait time from 429 response if present
@@ -51,15 +58,28 @@ async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 5, dela
                     continue
                 
                 response.raise_for_status()
-                return response.json()
+                response_data = response.json()
+                
+                # Token Verbrauch extrahieren und loggen
+                usage = response_data.get("usageMetadata")
+                if usage:
+                    in_tokens = usage.get("promptTokenCount", 0)
+                    out_tokens = usage.get("candidatesTokenCount", 0)
+                    total = usage.get("totalTokenCount", 0)
+                    logger.info(f"📊 Gemini Tokens -> Input: {in_tokens} | Output: {out_tokens} | Total: {total}")
+                    
+                return response_data
 
+            except httpx.TimeoutException as e:
+                logger.error(f"Gemini API timeout occurred on attempt {i + 1}/{retries}: {e}")
+                # We raise immediately on timeouts to avoid long retry loops
+                raise e
             except httpx.HTTPStatusError as e:
                 # Non-retryable HTTP errors
-                logger.error(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
-                if i == retries - 1:
-                    raise e
+                logger.error(f"Non-retryable HTTP error occurred: {e.response.status_code} - {e.response.text}")
+                raise e
             except Exception as e:
-                logger.error(f"Error calling Gemini API: {e}")
+                logger.error("Error calling Gemini API", exc_info=True)
                 if i == retries - 1:
                     raise e
                 
@@ -71,34 +91,10 @@ async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 5, dela
 async def analyze_emails(emails: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Constructs the prompt, configures the structured JSON schema, and calls the Gemini API to analyze the emails.
+    Processes emails in chunks of 5 to avoid overloading the API.
     """
     if not emails:
         return []
-
-    email_parts = []
-    for idx, email in enumerate(emails):
-        part = (
-            f"--- EMAIL #{idx + 1} ---\n"
-            f"ID: {email.get('id', '')}\n"
-            f"Subject: {email.get('subject', '')}\n"
-            f"Snippet: {email.get('snippet', '')}\n"
-            f"Body: {email.get('body', '')}\n"
-            f"Date: {email.get('date', '')}\n"
-            f"--------------------"
-        )
-        email_parts.append(part)
-        
-    email_list_prompt = "\n\n".join(email_parts)
-
-    prompt = (
-        "Analyze the following emails (most are in German for the German job market) received by the user and determine if they are related to a job application.\n"
-        "For each email, extract the hiring company, the job title/role (keep it in German as original, e.g. \"Softwareentwickler\"), estimate the current application status, the office/job location (e.g., \"Düsseldorf, Germany\" or \"Düsseldorf, Deutschland\"), the employment type (anstellungsart, e.g. \"Festanstellung\", \"Vollzeit\", \"Teilzeit\", \"Freie Mitarbeit\"), summarize the message, and offer action points.\n"
-        "Only categorize an email as isJobRelated: true if it is an actual application confirmation (Applied), status update/recruiter follow-up, interview request (Interview), assessment, feedback, rejection (Rejected), or job offer (Offer). Standard newsletters, generic job alerts from social media, spam, or promotional material are NOT job related (isJobRelated: false).\n\n"
-        "For each job-relevant email, you MUST classify it as:\n"
-        "- 'Neue Bewerbung' if the email is a confirmation of a new application receipt (e.g., containing phrases like \"wir haben deine bewerbung bekommen\", \"danke für deine bewerbung\", \"eingangsbestätigung\", \"vielen dank für deine bewerbung\").\n"
-        "- 'Statuswechsel' if the email represents a change or progress in status, such as an invite to an interview (\"interview\", \"gespräch\", \"telefonat\"), a rejection (\"absage\", \"nicht berücksichtigt\", \"anderweitig entschieden\"), or an offer (\"angebot\", \"arbeitsvertrag\", \"vertrag\").\n\n"
-        f"Emails to analyze:\n{email_list_prompt}"
-    )
 
     system_instruction = (
         "You are an elite talent acquisition analyst specializing in the German job market (Deutschemarkt). "
@@ -109,7 +105,6 @@ async def analyze_emails(emails: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         "Respond strictly in the JSON format requested."
     )
 
-    # Replicate the Node.js JSON schema mapping exactly
     schema = {
         "type": "ARRAY",
         "items": {
@@ -164,41 +159,79 @@ async def analyze_emails(emails: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         }
     }
 
-    # Construct standard generateContent API payload
-    payload = {
-        "contents": {
-            "parts": [
-                {"text": prompt}
-            ]
-        },
-        "systemInstruction": {
-            "parts": [
-                {"text": system_instruction}
-            ]
-        },
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "responseSchema": schema
-        }
-    }
+    # Split the emails list into chunks of max 5 emails
+    chunk_size = 5
+    chunks = [emails[i:i + chunk_size] for i in range(0, len(emails), chunk_size)]
+    all_results = []
 
-    response_json = await call_gemini_with_retry(payload)
-    
-    # Extract response text
-    try:
-        candidates = response_json.get("candidates", [])
-        if not candidates:
-            raise ValueError("No candidates found in Gemini response")
+    for chunk_idx, chunk in enumerate(chunks):
+        logger.info(f"Processing email chunk {chunk_idx + 1}/{len(chunks)} (size: {len(chunk)} emails)...")
+        
+        email_parts = []
+        for idx, email in enumerate(chunk):
+            part = (
+                f"--- EMAIL #{idx + 1} ---\n"
+                f"ID: {email.get('id', '')}\n"
+                f"Subject: {email.get('subject', '')}\n"
+                f"Snippet: {email.get('snippet', '')}\n"
+                f"Body: {email.get('body', '')}\n"
+                f"Date: {email.get('date', '')}\n"
+                f"--------------------"
+            )
+            email_parts.append(part)
             
-        text = candidates[0].get("content", {}).get("parts", [])[0].get("text", "")
-        if not text:
-            raise ValueError("Empty text returned from Gemini")
+        email_list_prompt = "\n\n".join(email_parts)
 
-        results = json.loads(text.strip())
-        return results
-    except Exception as e:
-        logger.error(f"Failed to parse response text from Gemini: {e}")
-        raise e
+        prompt = (
+            "Analyze the following emails (most are in German for the German job market) received by the user and determine if they are related to a job application.\n"
+            "For each email, extract the hiring company, the job title/role (keep it in German as original, e.g. \"Softwareentwickler\"), estimate the current application status, the office/job location (e.g., \"Düsseldorf, Germany\" or \"Düsseldorf, Deutschland\"), the employment type (anstellungsart, e.g. \"Festanstellung\", \"Vollzeit\", \"Teilzeit\", \"Freie Mitarbeit\"), summarize the message, and offer action points.\n"
+            "Only categorize an email as isJobRelated: true if it is an actual application confirmation (Applied), status update/recruiter follow-up, interview request (Interview), assessment, feedback, rejection (Rejected), or job offer (Offer). Standard newsletters, generic job alerts from social media, spam, or promotional material are NOT job related (isJobRelated: false).\n\n"
+            "For each job-relevant email, you MUST classify it as:\n"
+            "- 'Neue Bewerbung' if the email is a confirmation of a new application receipt (e.g., containing phrases like \"wir haben deine bewerbung bekommen\", \"danke für deine bewerbung\", \"eingangsbestätigung\", \"vielen dank für deine bewerbung\").\n"
+            "- 'Statuswechsel' if the email represents a change or progress in status, such as an invite to an interview (\"interview\", \"gespräch\", \"telefonat\"), a rejection (\"absage\", \"nicht berücksichtigt\", \"anderweitig entschieden\"), or an offer (\"angebot\", \"arbeitsvertrag\", \"vertrag\").\n\n"
+            f"Emails to analyze:\n{email_list_prompt}"
+        )
+
+        # Construct standard generateContent API payload
+        payload = {
+            "contents": {
+                "parts": [
+                    {"text": prompt}
+                ]
+            },
+            "systemInstruction": {
+                "parts": [
+                    {"text": system_instruction}
+                ]
+            },
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "responseSchema": schema
+            }
+        }
+
+        response_json = await call_gemini_with_retry(payload)
+        
+        # Extract response text
+        try:
+            candidates = response_json.get("candidates", [])
+            if not candidates:
+                raise ValueError("No candidates found in Gemini response")
+                
+            text = candidates[0].get("content", {}).get("parts", [])[0].get("text", "")
+            if not text:
+                raise ValueError("Empty text returned from Gemini")
+
+            chunk_results = json.loads(text.strip())
+            if isinstance(chunk_results, list):
+                all_results.extend(chunk_results)
+            else:
+                logger.warning(f"Unexpected non-list format from Gemini in chunk {chunk_idx + 1}: {chunk_results}")
+        except Exception as e:
+            logger.error(f"Failed to parse response text from Gemini for chunk {chunk_idx + 1}: {e}")
+            raise e
+
+    return all_results
 
 async def extract_cv_info(cv_text: str) -> Dict[str, Any]:
     """
