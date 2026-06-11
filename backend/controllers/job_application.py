@@ -27,7 +27,8 @@ def create_application(db: Session, app_data: JobApplicationCreate, table_name: 
         suggestedAction=app_data.suggestedAction,
         emailId=app_data.emailId,
         notes=app_data.notes,
-        source_file=app_data.source_file if app_data.source_file else table_name
+        source_file=app_data.source_file if app_data.source_file else table_name,
+        interview_date=app_data.interview_date
     )
     db.add(db_app)
     db.commit()

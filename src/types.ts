@@ -11,6 +11,7 @@ export interface JobApplication {
   suggestedAction?: string;
   emailId?: string;
   source_file?: string;
+  interview_date?: string;
 }
 
 export interface EmailUpdate {

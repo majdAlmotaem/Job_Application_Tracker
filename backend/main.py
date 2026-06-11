@@ -13,14 +13,18 @@ from backend.database import Base, engine
 from backend.models.job_application import JobApplicationModel
 Base.metadata.create_all(bind=engine)
 
-# Dynamically run schema migration to add source_file column if it doesn't exist
+# Dynamically run schema migration to add source_file and interview_date columns if they don't exist
 from sqlalchemy import inspect, text
 inspector = inspect(engine)
-if "job_applications" in inspector.get_table_names():
-    columns = [col["name"] for col in inspector.get_columns("job_applications")]
-    if "source_file" not in columns:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE job_applications ADD COLUMN source_file VARCHAR DEFAULT 'Default'"))
+for table_name in inspector.get_table_names():
+    if not table_name.startswith("sqlite_"):
+        columns = [col["name"] for col in inspector.get_columns(table_name)]
+        if "source_file" not in columns and table_name == "job_applications":
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE job_applications ADD COLUMN source_file VARCHAR DEFAULT 'Default'"))
+        if "interview_date" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN interview_date TEXT'))
 
 
 # Import Routers
