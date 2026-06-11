@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { FileUp, FileText, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 
 interface CVExtractionResult {
@@ -22,6 +22,46 @@ export const CVAutoFiller: React.FC<CVAutoFillerProps> = ({
   const [fileName, setFileName] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState(0);
+  const [loadingPhase, setLoadingPhase] = useState("PDF-Text extrahieren...");
+
+  useEffect(() => {
+    let intervalId: any;
+    if (status === "loading") {
+      setProgress(0);
+      setLoadingPhase("PDF-Text extrahieren...");
+      
+      const startTime = Date.now();
+      intervalId = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 98) return prev;
+          
+          let increment = 1;
+          if (prev < 30) {
+            increment = 2 + Math.random() * 2; // Fast start
+            setLoadingPhase("Lebenslauf-Text extrahieren...");
+          } else if (prev < 60) {
+            increment = 0.8 + Math.random() * 0.8; // Connecting to API
+            setLoadingPhase("Verbindung mit Gemini API herstellen...");
+          } else if (prev < 85) {
+            increment = 0.3 + Math.random() * 0.3; // Structuring CV schema
+            setLoadingPhase("Daten extrahieren und strukturieren...");
+          } else {
+            increment = 0.05 + Math.random() * 0.05; // Trickling
+            setLoadingPhase("Ergebnisse finalisieren...");
+          }
+          
+          return Math.min(98, prev + increment);
+        });
+      }, 300);
+    } else if (status === "success") {
+      setProgress(100);
+    } else {
+      setProgress(0);
+    }
+    
+    return () => clearInterval(intervalId);
+  }, [status]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -47,14 +87,20 @@ export const CVAutoFiller: React.FC<CVAutoFillerProps> = ({
     const formData = new FormData();
     formData.append("file", file);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 seconds timeout limit
+
     try {
       const response = await fetch("/api/jobs/extract-cv", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || "Extraktion fehlgeschlagen");
       }
 
@@ -62,9 +108,14 @@ export const CVAutoFiller: React.FC<CVAutoFillerProps> = ({
       setStatus("success");
       onExtractionSuccess(data);
     } catch (err: any) {
+      clearTimeout(timeoutId);
       console.error("Error uploading CV:", err);
       setStatus("error");
-      onExtractionError(err.message || "Fehler beim Analysieren des Lebenslaufs.");
+      if (err.name === "AbortError") {
+        onExtractionError("Zeitüberschreitung bei der Analyse. Der Server antwortet nicht rechtzeitig (Limit: 90 Sek.).");
+      } else {
+        onExtractionError(err.message || "Fehler beim Analysieren des Lebenslaufs.");
+      }
     } finally {
       setIsUploading(false);
     }
@@ -154,6 +205,21 @@ export const CVAutoFiller: React.FC<CVAutoFillerProps> = ({
                 : "Ziehen Sie Ihre PDF-Datei hierher oder klicken Sie zum Auswählen."}
             </p>
           </div>
+
+          {status === "loading" && (
+            <div className="w-full max-w-xs mt-3 space-y-1.5 mx-auto">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold px-0.5">
+                <span>{loadingPhase}</span>
+                <span className="text-blue-400 font-bold">{Math.round(progress)}%</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5 relative">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(59,130,246,0.4)]"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

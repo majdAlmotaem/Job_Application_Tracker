@@ -62,13 +62,42 @@ export function isSimilarCompany(name1: string, name2: string): boolean {
   const clean1 = normalize(name1);
   const clean2 = normalize(name2);
 
+  // 1. Exact match after suffix removal
   if (clean1 === clean2) return true;
-  if (clean1.length >= 2 && clean2.length >= 2 && (clean1.includes(clean2) || clean2.includes(clean1))) return true;
 
+  // 2. Token-based analysis (more strict)
   const tokens1 = cleanCompanyString(name1);
   const tokens2 = cleanCompanyString(name2);
+  
   if (tokens1.length === 0 || tokens2.length === 0) return false;
-  return tokens1.some(token => tokens2.includes(token));
+
+  const genericWords = new Set([
+    "gmbh", "co", "kg", "ag", "ltd", "inc", "group", "gruppe", "holding", 
+    "corp", "corporation", "gbr", "ev", "se", "solutions", "services", "service", 
+    "de", "deutschland", "germany", "ab", "as", "sas", "sarl", "spa", 
+    "informatik", "software", "technologies", "technology", "consulting", 
+    "consult", "systems", "systeme", "digital", "engineering", "tech", "it"
+  ]);
+
+  const filtered1 = tokens1.filter(t => !genericWords.has(t));
+  const filtered2 = tokens2.filter(t => !genericWords.has(t));
+
+  // If we have non-generic tokens, check for similarity on those
+  if (filtered1.length > 0 && filtered2.length > 0) {
+    const intersect = filtered1.filter(t => filtered2.includes(t));
+    if (intersect.length === 0) return false;
+    
+    // Require high overlap on significant (non-generic) tokens
+    const matchRatio = intersect.length / Math.max(filtered1.length, filtered2.length);
+    return matchRatio >= 0.6;
+  }
+
+  // Fallback to raw tokens if one has only generic words (e.g. "Software Systems GmbH")
+  const intersect = tokens1.filter(t => tokens2.includes(t));
+  if (intersect.length === 0) return false;
+  
+  const matchRatio = intersect.length / Math.max(tokens1.length, tokens2.length);
+  return matchRatio >= 0.75; // require even higher threshold for generic ones
 }
 
 export function isSimilarText(text1: string, text2: string): boolean {
@@ -206,6 +235,9 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
   );
   const [emailUpdates, setEmailUpdates] = useState<EmailUpdate[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [syncPhase, setSyncPhase] = useState("Gmail-Postfach durchsuchen...");
+  const [syncDetails, setSyncDetails] = useState("Hole E-Mails aus Ihrem Gmail-Postfach...");
   const [isInboxScanned, setIsInboxScanned] = useState<boolean>(false);
   
   const [showAddForm, setShowAddForm] = useState(false);
@@ -482,6 +514,9 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
     let currentToken = token;
     if (!currentToken) {
       setIsScanning(true);
+      setSyncProgress(2);
+      setSyncPhase("Google Authentifizierung...");
+      setSyncDetails("Bitte authentifizieren Sie sich über das Google Popup...");
       try {
         const authResult = await googleSignIn();
         if (authResult) {
@@ -500,9 +535,57 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
     }
 
     setIsScanning(true);
+    setSyncProgress(5);
+    setSyncPhase("Gmail-Postfach durchsuchen...");
+    setSyncDetails("Verbindung mit Gmail wird hergestellt...");
+    let progressInterval: any;
     try {
-      triggerToast("success", "Emails werden geladen...");
       const messages = await searchGmailMessages(currentToken!, gmailQuery, 15);
+      const totalEmails = messages.length;
+      
+      if (totalEmails === 0) {
+        setSyncProgress(100);
+        setSyncPhase("Keine E-Mails gefunden.");
+        setSyncDetails("Es wurden keine neuen E-Mails in Ihrem Postfach gefunden.");
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setIsScanning(false);
+        setIsInboxScanned(true);
+        setEmailUpdates([]);
+        triggerToast("success", "Keine E-Mails gefunden.");
+        return;
+      }
+
+      setSyncProgress(15);
+      setSyncPhase("E-Mails analysieren...");
+      const numChunks = Math.ceil(totalEmails / 5);
+      setSyncDetails(`Gefunden: ${totalEmails} E-Mails. Analysiere in ${numChunks} Blöcken via Gemini...`);
+
+      // Start progress simulation interval
+      let currentProgress = 15;
+      const estSeconds = Math.max(15, numChunks * 20); // ca 20s per chunk
+      const intervalMs = 300;
+      const totalSteps = (estSeconds * 1000) / intervalMs;
+      const stepIncrement = (95 - 15) / totalSteps;
+
+      progressInterval = setInterval(() => {
+        currentProgress += stepIncrement + (Math.random() * 0.05);
+        if (currentProgress >= 95) {
+          currentProgress = 95;
+          setSyncDetails("Antwort wird finalisiert. Gleich fertig...");
+        } else {
+          // Update details based on progress range
+          if (currentProgress < 40) {
+            setSyncDetails(`Analysiere E-Mails (Block 1/${numChunks})...`);
+          } else if (currentProgress < 70) {
+            const currentBlock = Math.min(numChunks, 2);
+            setSyncDetails(`Extrahiere Firmen und Bewerbungsstatus (Block ${currentBlock}/${numChunks})...`);
+          } else {
+            const currentBlock = Math.min(numChunks, numChunks);
+            setSyncDetails(`Ergebnisse werden strukturiert (Block ${currentBlock}/${numChunks})...`);
+          }
+        }
+        setSyncProgress(currentProgress);
+      }, intervalMs);
 
       const response = await fetch("/api/analyze-emails", {
         method: "POST",
@@ -510,7 +593,12 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
         body: JSON.stringify({ emails: messages }),
       });
 
-      if (!response.ok) throw new Error("Failed to analyze emails on server");
+      clearInterval(progressInterval);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Fehler bei der E-Mail-Analyse");
+      }
 
       const backendData = await response.json();
       const updates: EmailUpdate[] = backendData.results.map((result: any) => {
@@ -533,12 +621,22 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
         return true;
       });
 
+      setSyncProgress(100);
+      setSyncPhase("Synchronisierung erfolgreich!");
+      setSyncDetails(`Analyse abgeschlossen. ${filteredUpdates.length} relevante Updates geladen.`);
+      
       setEmailUpdates(filteredUpdates);
       setIsInboxScanned(true);
       triggerToast("success", `${filteredUpdates.length} Updates gefunden.`);
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      setIsScanning(false);
     } catch (err: any) {
-      triggerToast("error", "Fehler beim Scan.");
-    } finally {
+      if (progressInterval) clearInterval(progressInterval);
+      setSyncProgress(0);
+      setSyncPhase("Fehler bei der Synchronisierung");
+      setSyncDetails(err.message || "Fehler beim E-Mail Scan.");
+      triggerToast("error", err.message || "Fehler beim Scan.");
+      await new Promise(resolve => setTimeout(resolve, 3000));
       setIsScanning(false);
     }
   };
@@ -1262,6 +1360,33 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
           </div>
         </div>
       </header>
+
+      {/* Loading Progress Bar for Gmail Sync */}
+      {isScanning && (
+        <div className="relative overflow-hidden rounded-xl border border-blue-500/20 bg-slate-900/40 p-4 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+              <RefreshCw className="h-5 w-5 animate-spin" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-100">{syncPhase}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{syncDetails}</p>
+            </div>
+          </div>
+          <div className="w-full md:max-w-xs space-y-1.5 shrink-0">
+            <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold px-0.5">
+              <span>Fortschritt</span>
+              <span className="text-blue-400 font-bold">{Math.round(syncProgress)}%</span>
+            </div>
+            <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5 relative">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(59,130,246,0.4)]"
+                style={{ width: `${syncProgress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Dashboard (Daily Goal + Overall Metrics) */}
       <StatsDashboard

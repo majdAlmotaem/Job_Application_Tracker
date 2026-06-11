@@ -34,3 +34,4 @@ Thumbs.db
 !.env.example
 firebase-applet-config.json
 backend/logs/
+/logs/
