@@ -1,6 +1,6 @@
 # Entwickler-Dokumentation - SyncSheet (Job Application Tracker)
 
-SyncSheet ist ein intelligenter Bewerbungs-Tracker, der E-Mails aus einem Gmail-Postfach automatisch auf Bewerbungsstatus (z. B. Bewerbung bestätigt, Intervieweinladung, Absage, Zusage) scannt, diese mithilfe der Gemini-API analysiert und die extrahierten Daten strukturiert in eine Google-Tabelle einträgt.
+SyncSheet ist ein intelligenter Bewerbungs-Tracker, der E-Mails aus einem Gmail-Postfach automatisch auf Bewerbungsstatus (z. B. Bewerbung bestätigt, Intervieweinladung, Absage, Zusage) scannt, diese mithilfe der Gemini-API analysiert und die extrahierten Daten strukturiert in einer lokalen SQLite-Datenbank abspeichert.
 
 ---
 
@@ -8,83 +8,125 @@ SyncSheet ist ein intelligenter Bewerbungs-Tracker, der E-Mails aus einem Gmail-
 
 Die Anwendung ist als Fullstack-Webanwendung aufgebaut:
 
-### 1. Frontend (React + Vite)
+### 1. Frontend (React + Vite + TypeScript)
 - **Framework & Styling:** React mit TypeScript und TailwindCSS für ein modernes, reaktionsschnelles Interface.
+- **Routing:** React Router DOM v7 für die Seitennavigation (Übersicht, Tracker, Job-Suche, Profil).
 - **Animationen:** Framer Motion (`motion/react`) für flüssige Übergänge und UI-Interaktionen.
-- **Authentifizierung:** Google OAuth via Firebase Authentication. Ermöglicht den sicheren Zugriff auf die Gmail- und Google Sheets APIs des Nutzers.
-- **Datenhaltung:** Synchronisation direkt mit Google Sheets, mit einem Offline-Fallback über den `localStorage` des Browsers.
+- **Authentifizierung:** Google OAuth via Firebase Authentication. Ermöglicht den sicheren Zugriff auf die Gmail-API des Nutzers.
+- **Tabellenverwaltung:** Dynamische Erstellung und Verwaltung von separaten Tabellen direkt in der SQLite-Datenbank des Backends (z.B. für verschiedene CSV-Importe).
 
-### 2. Backend (Express.js)
-- **API-Endpunkt:** `/api/analyze-emails` zur Analyse von E-Mail-Inhalten.
-- **KI-Integration:** Nutzt das `@google/genai` SDK mit dem Modell `gemini-3.5-flash`, um E-Mails semantisch zu analysieren, irrelevante E-Mails (Spam, Newsletter) auszufiltern und strukturierte JSON-Daten zu erzeugen.
-- **Robustheit:** Implementiert einen robusten Exponential-Backoff-Mechanismus (`callGeminiWithRetry`), um Quotenüberschreitungen (429) und temporäre Serverfehler (503) abzufangen.
+### 2. Backend (Python + FastAPI)
+- **Framework:** FastAPI für eine hochperformante, asynchrone Python-API.
+- **Datenbank & ORM:** SQLite mit SQLAlchemy zur Speicherung von Bewerbungen. Tabellen werden dynamisch auf Basis von Benutzereingaben oder CSV-Importen erstellt (`get_job_application_model`).
+- **KI-Integration:** Gemini-Modell (`gemini-3.5-flash`) zur semantischen Analyse von E-Mails, Filtern von Spam und automatischem Extrahieren strukturierter JSON-Daten.
+- **API-Endpunkte:**
+  - `GET /api/applications` - Lädt Bewerbungen einer Tabelle.
+  - `POST /api/applications` - Erstellt eine neue Bewerbung in einer Tabelle.
+  - `PUT /api/applications/{id}` - Aktualisiert eine Bewerbung.
+  - `DELETE /api/applications/{id}` - Löscht eine Bewerbung.
+  - `GET /api/applications/tables` - Gibt alle in der DB registrierten Tabellen zurück.
+  - `PUT /api/applications/tables/{table_name}` - Benennt eine Tabelle um (`ALTER TABLE RENAME TO`).
+  - `DELETE /api/applications/tables/{table_name}` - Löscht/Leert eine Tabelle.
+  - `POST /api/analyze-emails` - Analysiert Gmail-E-Mails via Gemini.
+  - `POST /api/csv/upload` - Importiert eine neue Tabelle via CSV-Upload.
+  - `GET /api/csv/download` - Exportiert eine Tabelle als CSV-Datei.
 
 ---
 
 ## 📁 Dateistruktur & Kernkomponenten
 
 ```text
-├── server.ts               # Express-Server, Gemini-API-Integration & Retry-Logik
-├── vite.config.ts          # Vite Konfiguration (Bundler & Server-Alias)
+├── backend/
+│   ├── models/            # SQLAlchemy Datenmodelle (dynamische Tabellenerstellung)
+│   ├── controllers/       # CRUD-Controller für Bewerbungen und CSV-Konvertierung
+│   ├── routers/           # FastAPI Routen (applications, csv, email_analysis)
+│   ├── schemas/           # Pydantic Schemata für API-Validierung
+│   ├── services/          # Externe Services (z.B. Gemini API Integration)
+│   ├── database.py        # SQLite Engine & Session-Konfiguration
+│   ├── requirements.txt   # Python Abhängigkeiten
+│   └── main.py            # FastAPI App & Middleware Routing
 ├── src/
-│   ├── App.tsx             # Hauptkomponente (UI, Tabellenansicht, Synchronisations-Logik)
-│   ├── gmailService.ts     # Schnittstelle zur Gmail API (Nachrichtensuche & Decodierung)
-│   ├── googleAuth.ts       # Firebase Initialisierung & Google OAuth Flow
-│   ├── sheetsService.ts    # Schnittstelle zur Google Sheets API (CRUD-Operationen auf Tabellen)
-│   ├── types.ts            # TypeScript Typendefinitionen & Status-Normalisierung
-│   └── index.css           # Globale Styles & Tailwind CSS Direktiven
+│   ├── components/
+│   │   ├── JobTable.tsx        # Interaktive Jobtabelle (Editierbar per Doppelklick, Spalten-Resize)
+│   │   ├── Sidebar.tsx         # Collapsible Seitenleiste mit Sub-Tabs für einzelne Tabellen
+│   │   └── StatsDashboard.tsx  # Metriken und Kacheln (Zusagen, Absagen, etc.)
+│   ├── pages/
+│   │   ├── LandingPage.tsx     # Übersichtsseite mit Direktlinks
+│   │   ├── JobTrackerPage.tsx  # Haupt-Tracker-View mit Gmail-Sync und Tab-Verwaltung
+│   │   ├── JobSearchPage.tsx   # Jobsuche (Coming Soon)
+│   │   └── ProfilePage.tsx     # Profil bearbeiten
+│   ├── services/
+│   │   ├── gmailService.ts     # Schnittstelle zur Gmail API
+│   │   └── googleAuth.ts       # Google Sign-In via Firebase
+│   ├── App.tsx                 # App-Routing, Tabellen- & Tab-Zustand (State Uplifting)
+│   └── index.css               # Globale CSS-Styles und Tailwind-Konfiguration
+├── package.json                # NPM Scripts (Vite Dev Server & FastAPI Dev Server)
+├── tsconfig.json               # TypeScript Konfiguration
+└── vite.config.ts              # Vite Konfiguration mit Backend Proxy (/api)
 ```
 
 ---
 
-## 🚀 Lokale Installation und Setup
+## 🚀 Lokale Installation und Ausführung
+
+Befolgen Sie diese Schritte, um das Projekt auf Ihrem lokalen Gerät auszuführen:
 
 ### Voraussetzungen
 - **Node.js** (Version 18 oder höher empfohlen)
-- **Google Cloud / Firebase Project** mit aktivierten Gmail- und Google Sheets-APIs.
+- **Python** (Version 3.9 oder höher)
 
-### 1. Repository klonen & Abhängigkeiten installieren
+### 1. Repository klonen und Node-Abhängigkeiten installieren
+Öffnen Sie das Terminal im Projektordner und installieren Sie die Node-Pakete:
 ```bash
 npm install
 ```
 
-### 2. Umgebungsvariablen einrichten
-Erstelle eine `.env` Datei im Stammverzeichnis und trage deinen Gemini API-Key ein:
-```env
-GEMINI_API_KEY=dein_gemini_api_key_hier
+### 2. Python Virtual Environment (virtuelle Umgebung) einrichten & aktivieren
+Erstellen Sie eine virtuelle Umgebung im Stammverzeichnis des Projekts:
+```bash
+python -m venv .venv
 ```
 
-Stelle sicher, dass die Firebase-Konfiguration in der Datei `firebase-applet-config.json` hinterlegt ist:
-```json
-{
-  "apiKey": "...",
-  "authDomain": "...",
-  "projectId": "...",
-  "storageBucket": "...",
-  "messagingSenderId": "...",
-  "appId": "..."
-}
+Aktivieren Sie die virtuelle Umgebung:
+* **Windows (PowerShell):**
+  ```powershell
+  .venv\Scripts\Activate.ps1
+  ```
+* **Windows (CMD):**
+  ```cmd
+  .venv\Scripts\activate.bat
+  ```
+* **Mac/Linux:**
+  ```bash
+  source .venv/bin/activate
+  ```
+
+### 3. Python-Abhängigkeiten installieren
+Stellen Sie sicher, dass die virtuelle Umgebung aktiviert ist, und installieren Sie die Python-Bibliotheken:
+```bash
+pip install -r backend/requirements.txt
 ```
 
-### 3. Anwendung im Entwicklungsmodus starten
+### 4. Umgebungsvariablen & Konfiguration einrichten
+1. Erstellen Sie eine `.env`-Datei im Projekt-Stammverzeichnis (Root) und tragen Sie Ihren Gemini API-Key ein:
+   ```env
+   GEMINI_API_KEY=dein_gemini_api_key_hier
+   ```
+2. Stellen Sie sicher, dass Ihre Firebase-Konfiguration in der Datei `firebase-applet-config.json` im Stammverzeichnis hinterlegt ist.
+
+### 5. Anwendung im Entwicklungsmodus starten
+Führen Sie im Stammverzeichnis folgenden Befehl aus:
 ```bash
 npm run dev
 ```
-Der Server startet standardmäßig auf Port `3000` (Frontend wird per Vite-Middleware ausgeliefert).
+Dieser Befehl startet **gleichzeitig**:
+- Das Frontend (Vite) auf `http://localhost:5173`
+- Das Backend (FastAPI) auf `http://127.0.0.1:8000`
 
-### 4. Produktions-Build erstellen und starten
+Das Frontend leitet alle API-Anfragen an `/api/*` automatisch an den Python-Server weiter. Öffnen Sie einfach `http://localhost:5173` im Browser, um die Anwendung zu nutzen!
+
+### 6. Code compilieren und Typen prüfen
+Um sicherzustellen, dass keine TypeScript-Fehler vorliegen:
 ```bash
-npm run build
-npm start
+npm run lint
 ```
-
----
-
-## 🔍 Wichtige Abläufe im Detail
-
-### E-Mail-Analyse-Flow
-1. Das Frontend ruft E-Mails ab, die auf eine vordefinierte Suchanfrage passen (z. B. `Bewerbung OR Interview OR Absage`).
-2. Der E-Mail-Text wird bereinigt (HTML-Tags und Sonderzeichen entfernt) und auf max. 5000 Zeichen gekürzt.
-3. Die Liste der E-Mails wird an `/api/analyze-emails` gesendet.
-4. Gemini analysiert die E-Mails und gibt ein strukturiertes JSON-Array zurück.
-5. Das Frontend vergleicht die Ergebnisse mit der Datenbank auf Dubletten und zeigt dem Nutzer neue Einträge (Kategorie: *Neue Bewerbung*) oder Statusänderungen (Kategorie: *Statusänderung*) zur Übernahme an.

@@ -10,6 +10,7 @@ export interface JobApplication {
   summary?: string;
   suggestedAction?: string;
   emailId?: string;
+  source_file?: string;
 }
 
 export interface EmailUpdate {

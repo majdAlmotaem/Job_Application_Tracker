@@ -1,9 +1,35 @@
+# Dependency directories
 node_modules/
-build/
 dist/
+build/
 coverage/
+
+# Python Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python caching & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Databases (SQLite)
+*.db
+*.db-journal
+*.sqlite3
+
+# Local/system files
 .DS_Store
+Thumbs.db
 *.log
-.env*
+
+# Sensitive config & keys
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
 !.env.example
 firebase-applet-config.json
