@@ -20,12 +20,14 @@ import {
   Trash2,
   MoreVertical,
   Upload,
-  Download
+  Download,
+  Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { searchGmailMessages } from "../services/gmailService";
 import { JobApplication, EmailUpdate } from "../types";
 import { JobTable } from "../components/JobTable";
+import { StatsDashboard } from "../components/StatsDashboard";
 
 interface MatchableEntity {
   company: string;
@@ -108,6 +110,22 @@ export function isFuzzyDuplicate(existingApp: MatchableEntity, update: Matchable
   return roleMatch || locationMatch;
 }
 
+export function getLocalDateString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export interface InterviewReminder {
+  id: string;
+  applicationId: string;
+  company: string;
+  date: string;
+  tableName: string;
+}
+
 interface PendingTab {
   key: string;
   label: string;
@@ -134,6 +152,8 @@ interface JobTrackerPageProps {
   setPendingTabs: React.Dispatch<React.SetStateAction<PendingTab[]>>;
   loadTables: () => Promise<void>;
   onRequestNewTab: () => void;
+  dailyGoal: number;
+  setDailyGoal: (goal: number) => void;
 }
 
 export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
@@ -149,6 +169,8 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
   setPendingTabs,
   loadTables,
   onRequestNewTab,
+  dailyGoal,
+  setDailyGoal,
 }) => {
   // Is the currently selected tab a pending (not-yet-saved) tab?
   const isPendingTab = pendingTabs.some((pt) => pt.key === selectedTable);
@@ -161,6 +183,15 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
   // Rename modal — used to name/rename a pending tab before committing to DB
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
+
+  // Interview Reminder states
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
+  const [reminderDate, setReminderDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [reminderAppId, setReminderAppId] = useState("");
+  const [reminders, setReminders] = useState<InterviewReminder[]>(() => {
+    const saved = localStorage.getItem("syncsheet_interview_reminders");
+    return saved ? JSON.parse(saved) : [];
+  });
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportFileSelected, setExportFileSelected] = useState<string>("job_applications");
@@ -189,6 +220,8 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [sortType, setSortType] = useState<string>("date_desc");
+
+
   
   const [syncingEmailId, setSyncingEmailId] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -241,6 +274,56 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
       loadApplications(selectedTable);
     }
   }, [selectedTable, isPendingTab]);
+
+  // Dynamic Reminder Pruning and auto-sync
+  const todayStrForReminders = getLocalDateString();
+  const activeReminders = reminders.filter(rem => {
+    if (rem.tableName !== selectedTable) return false;
+    if (rem.date < todayStrForReminders) return false;
+    const linkedApp = applications.find(app => app.id === rem.applicationId);
+    if (!linkedApp || linkedApp.status !== "Interview") return false;
+    return true;
+  });
+
+  useEffect(() => {
+    const todayStr = getLocalDateString();
+    const otherTablesReminders = reminders.filter(r => r.tableName !== selectedTable && r.date >= todayStr);
+    const prunedAll = [...otherTablesReminders, ...activeReminders];
+    if (prunedAll.length !== reminders.length) {
+      setReminders(prunedAll);
+      localStorage.setItem("syncsheet_interview_reminders", JSON.stringify(prunedAll));
+    }
+  }, [applications, selectedTable]);
+
+  const handleSaveReminder = () => {
+    if (!reminderAppId || !reminderDate) {
+      triggerToast("error", "Bitte wählen Sie ein Datum und eine Firma aus.");
+      return;
+    }
+    const linkedApp = applications.find(app => app.id === reminderAppId);
+    if (!linkedApp) return;
+
+    const newReminder: InterviewReminder = {
+      id: Math.random().toString(36).substr(2, 9),
+      applicationId: reminderAppId,
+      company: linkedApp.company,
+      date: reminderDate,
+      tableName: selectedTable,
+    };
+
+    const updatedReminders = [...reminders, newReminder];
+    setReminders(updatedReminders);
+    localStorage.setItem("syncsheet_interview_reminders", JSON.stringify(updatedReminders));
+    setReminderModalOpen(false);
+    triggerToast("success", `Erinnerung für ${linkedApp.company} am ${reminderDate} hinzugefügt.`);
+  };
+
+  const handleDeleteReminder = (id: string) => {
+    const updated = reminders.filter(r => r.id !== id);
+    setReminders(updated);
+    localStorage.setItem("syncsheet_interview_reminders", JSON.stringify(updated));
+    triggerToast("success", "Terminerinnerung gelöscht.");
+  };
 
   // After saving data to a pending tab it becomes real → remove from pendingTabs
   const promotePendingTab = () => {
@@ -783,6 +866,18 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
     return app;
   });
 
+
+
+  const todayStr = getLocalDateString();
+  const addedToday = applicationsWithDrafts.filter(app => app.date === todayStr).length;
+
+  const metrics = {
+    total: applicationsWithDrafts.length,
+    interviewing: applicationsWithDrafts.filter(app => app.status === "Interview").length,
+    offers: applicationsWithDrafts.filter(app => app.status === "Offer").length,
+    rejected: applicationsWithDrafts.filter(app => app.status === "Rejected").length,
+  };
+
   const filteredAndSortedApplications = [...applicationsWithDrafts].filter(app => {
     const matchesSearch = app.company.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "All" ? true : app.status === filterStatus;
@@ -943,147 +1038,12 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
         </div>
 
         {/* Single action dropdown menu */}
-        <div className="relative" ref={actionMenuRef}>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                const file = e.target.files[0];
-                const baseName = file.name.replace(/\.[^/.]+$/, "");
-                // Warn if currently selected tab already has data
-                if (applications.length > 0) {
-                  triggerConfirm({
-                    title: "Tabelle überschreiben?",
-                    message: `Die aktuelle Liste "${formatTableName(selectedTable)}" enthält bereits ${applications.length} Einträge. Eine neue CSV erstellt eine neue, separate Tabelle. Möchten Sie fortfahren?`,
-                    confirmText: "Fortfahren",
-                    type: "warning",
-                    onConfirm: () => {
-                      setPendingFile(file);
-                      setImportFileName(baseName);
-                      setImportModalOpen(true);
-                    },
-                  });
-                } else {
-                  setPendingFile(file);
-                  setImportFileName(baseName);
-                  setImportModalOpen(true);
-                }
-                // Reset input so same file can be picked again
-                e.target.value = "";
-              }
-            }}
-            className="hidden"
-            accept=".csv"
-          />
-
-          <button
-            onClick={() => setActionMenuOpen((v) => !v)}
-            className="bg-slate-800 border border-white/10 hover:bg-slate-700 text-slate-200 font-semibold py-2 px-4 rounded-lg text-xs transition flex items-center gap-2 cursor-pointer shadow-sm"
-          >
-            <MoreVertical className="h-4 w-4 text-slate-400" />
-            Aktionen
-            <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${actionMenuOpen ? "rotate-180" : ""}`} />
-          </button>
-
-          {actionMenuOpen && (
-            <div className="absolute right-0 top-full mt-1.5 w-56 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 py-1">
-
-              {/* Umbenennen — always shown, disabled only for the default table */}
-              {selectedTable !== "job_applications" && (
-                <>
-                  <button
-                    onClick={() => {
-                      setActionMenuOpen(false);
-                      setRenameValue(formatTableName(selectedTable));
-                      setRenameModalOpen(true);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 transition cursor-pointer text-left"
-                  >
-                    <FileSpreadsheet className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                    Liste umbenennen
-                  </button>
-                  <div className="mx-3 my-1 border-t border-white/5" />
-                </>
-              )}
-
-              {/* Import */}
-              <button
-                onClick={() => { setActionMenuOpen(false); fileInputRef.current?.click(); }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 transition cursor-pointer text-left"
-              >
-                <Upload className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                CSV Importieren
-              </button>
-
-              {/* Export — only when there's data */}
-              <button
-                onClick={() => {
-                  setActionMenuOpen(false);
-                  if (applications.length === 0) {
-                    triggerToast("error", "Keine Daten vorhanden zum Exportieren.");
-                    return;
-                  }
-                  setExportFileSelected(selectedTable);
-                  setExportModalOpen(true);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 transition cursor-pointer text-left"
-              >
-                <Download className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                CSV Exportieren
-              </button>
-
-              {/* Delete/Clear — hidden for default table; shown for custom tables and pending tabs */}
-              {selectedTable !== "job_applications" && (
-                <>
-                  <div className="mx-3 my-1 border-t border-white/5" />
-                  <button
-                    onClick={() => {
-                      setActionMenuOpen(false);
-                      if (isPendingTab) {
-                        const remainingTabs = [
-                          ...availableTables.filter((t) => t !== "job_applications"),
-                          ...pendingTabs.filter((pt) => pt.key !== selectedTable).map((p) => p.key),
-                        ];
-                        setPendingTabs((prev) => prev.filter((pt) => pt.key !== selectedTable));
-                        if (remainingTabs.length > 0) {
-                          setSelectedTable(remainingTabs[0]);
-                        } else {
-                          onRequestNewTab();
-                        }
-                      } else {
-                        handleDeleteTable();
-                      }
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-rose-400 hover:bg-rose-950/30 transition cursor-pointer text-left"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 shrink-0" />
-                    {isPendingTab ? "Liste entfernen" : "Tabelle löschen"}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* 2. Sync & Manual Entry Drawer */}
-      <div className="flex justify-between items-center gap-4 bg-slate-900/10 p-4 border border-white/5 rounded-xl">
-        <span className="text-xs text-slate-400">
-          Automatisieren Sie Ihren Workflow oder erfassen Sie Datensätze manuell.
-        </span>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-slate-800 border border-white/5 hover:bg-slate-700 text-white font-medium py-1.5 px-4 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="h-4 w-4" /> Eintrag hinzufügen
-          </button>
           <button
             id="scan-button"
             onClick={handleScanInboxAndAnalyze}
             disabled={isScanning}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-4 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer shrink-0"
           >
             {isScanning ? (
               <>
@@ -1095,8 +1055,205 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
               </>
             )}
           </button>
+
+          <div className="relative" ref={actionMenuRef}>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  const file = e.target.files[0];
+                  const baseName = file.name.replace(/\.[^/.]+$/, "");
+                  // Warn if currently selected tab already has data
+                  if (applications.length > 0) {
+                    triggerConfirm({
+                      title: "Tabelle überschreiben?",
+                      message: `Die aktuelle Liste "${formatTableName(selectedTable)}" enthält bereits ${applications.length} Einträge. Eine neue CSV erstellt eine neue, separate Tabelle. Möchten Sie fortfahren?`,
+                      confirmText: "Fortfahren",
+                      type: "warning",
+                      onConfirm: () => {
+                        setPendingFile(file);
+                        setImportFileName(baseName);
+                        setImportModalOpen(true);
+                      },
+                    });
+                  } else {
+                    setPendingFile(file);
+                    setImportFileName(baseName);
+                    setImportModalOpen(true);
+                  }
+                  // Reset input so same file can be picked again
+                  e.target.value = "";
+                }
+              }}
+              className="hidden"
+              accept=".csv"
+            />
+
+            <button
+              onClick={() => setActionMenuOpen((v) => !v)}
+              className="bg-slate-800 border border-white/10 hover:bg-slate-700 text-slate-200 font-semibold py-2 px-4 rounded-lg text-xs transition flex items-center gap-2 cursor-pointer shadow-sm"
+            >
+              <MoreVertical className="h-4 w-4 text-slate-400" />
+              Aktionen
+              <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${actionMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {actionMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-56 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 py-1">
+
+                {/* Umbenennen — always shown, disabled only for the default table */}
+                {selectedTable !== "job_applications" && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        setRenameValue(formatTableName(selectedTable));
+                        setRenameModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 transition cursor-pointer text-left"
+                    >
+                      <FileSpreadsheet className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                      Liste umbenennen
+                    </button>
+                    <div className="mx-3 my-1 border-t border-white/5" />
+                  </>
+                )}
+
+                {/* Import */}
+                <button
+                  onClick={() => { setActionMenuOpen(false); fileInputRef.current?.click(); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 transition cursor-pointer text-left"
+                >
+                  <Upload className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                  CSV Importieren
+                </button>
+
+                {/* Export — only when there's data */}
+                <button
+                  onClick={() => {
+                    setActionMenuOpen(false);
+                    if (applications.length === 0) {
+                      triggerToast("error", "Keine Daten vorhanden zum Exportieren.");
+                      return;
+                    }
+                    setExportFileSelected(selectedTable);
+                    setExportModalOpen(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 transition cursor-pointer text-left"
+                >
+                  <Download className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  CSV Exportieren
+                </button>
+
+                {/* Interview Reminder */}
+                <button
+                  onClick={() => {
+                    setActionMenuOpen(false);
+                    const interviewApps = applications.filter((app) => app.status === "Interview");
+                    if (interviewApps.length === 0) {
+                      triggerToast("error", "Sie müssen zuerst den Status einer Bewerbung auf 'Interview' setzen.");
+                      return;
+                    }
+                    setReminderAppId(interviewApps[0].id);
+                    setReminderDate(new Date().toISOString().split("T")[0]);
+                    setReminderModalOpen(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 transition cursor-pointer text-left"
+                >
+                  <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  Termin hinzufügen
+                </button>
+
+                {/* Delete/Clear — hidden for default table; shown for custom tables and pending tabs */}
+                {selectedTable !== "job_applications" && (
+                  <>
+                    <div className="mx-3 my-1 border-t border-white/5" />
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        if (isPendingTab) {
+                          const remainingTabs = [
+                            ...availableTables.filter((t) => t !== "job_applications"),
+                            ...pendingTabs.filter((pt) => pt.key !== selectedTable).map((p) => p.key),
+                          ];
+                          setPendingTabs((prev) => prev.filter((pt) => pt.key !== selectedTable));
+                          if (remainingTabs.length > 0) {
+                            setSelectedTable(remainingTabs[0]);
+                          } else {
+                            onRequestNewTab();
+                          }
+                        } else {
+                          handleDeleteTable();
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-rose-400 hover:bg-rose-950/30 transition cursor-pointer text-left"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                      {isPendingTab ? "Liste entfernen" : "Tabelle löschen"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
+
+      {/* Stats Dashboard (Daily Goal + Overall Metrics) */}
+      <StatsDashboard
+        metrics={metrics}
+        addedToday={addedToday}
+        dailyGoal={dailyGoal}
+        setDailyGoal={setDailyGoal}
+      />
+
+      {/* Active Interview Reminders */}
+      {activeReminders.length > 0 && (
+        <div className="professional-card p-5 border border-amber-500/20 bg-amber-500/5 rounded-xl space-y-3.5">
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+            <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>Anstehende Interview-Termine ({activeReminders.length})</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {activeReminders.map((rem) => {
+              const today = new Date(todayStrForReminders);
+              const interviewDate = new Date(rem.date);
+              const diffTime = interviewDate.getTime() - today.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              let badgeText = `In ${diffDays} Tagen`;
+              if (diffDays === 0) badgeText = "Heute!";
+              if (diffDays === 1) badgeText = "Morgen!";
+
+              return (
+                <div key={rem.id} className="bg-slate-950/40 border border-white/5 hover:border-white/10 rounded-xl p-3.5 flex items-center justify-between gap-3 group/item transition">
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="text-xs font-bold text-slate-100 truncate">{rem.company}</div>
+                    <div className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
+                      <span>Termin:</span>
+                      <span className="font-bold text-slate-200">{new Date(rem.date).toLocaleDateString("de-DE")}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${diffDays === 0 ? "bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse" : "bg-amber-500/10 text-amber-400 border border-amber-500/20"}`}>
+                      {badgeText}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteReminder(rem.id)}
+                      className="opacity-0 group-hover/item:opacity-100 focus:opacity-100 transition-opacity p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-rose-400 border-none cursor-pointer bg-transparent"
+                      title="Termin entfernen"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
 
       {/* Gmail Synced Email Cards */}
       {isInboxScanned && (
@@ -1210,6 +1367,8 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
               </div>
             )}
 
+
+
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#64748B]" />
               <input
@@ -1253,6 +1412,14 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
               </select>
             </div>
           </div>
+
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="bg-slate-800 border border-white/10 hover:bg-slate-700 text-slate-200 font-semibold py-1.5 px-4 rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5 text-slate-400" />
+            Eintrag hinzufügen
+          </button>
         </div>
 
         {/* Pending tab empty state */}
@@ -1572,6 +1739,70 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
                   className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 font-semibold px-4 py-2 rounded-lg text-xs transition cursor-pointer text-white border-none"
                 >
                   Umbenennen
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Interview Reminder Modal */}
+      <AnimatePresence>
+        {reminderModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-slate-900 border border-white/5 rounded-xl max-w-sm w-full shadow-2xl p-6 text-left"
+            >
+              <h3 className="text-base font-bold text-slate-100 m-0 mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-amber-500 shrink-0" />
+                <span>Termin hinzufügen</span>
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Unternehmen</label>
+                  <select
+                    value={reminderAppId}
+                    onChange={(e) => setReminderAppId(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
+                  >
+                    {applications.filter(app => app.status === "Interview").map(app => (
+                      <option key={app.id} value={app.id} className="bg-slate-900 text-slate-200">
+                        {app.company} ({app.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Datum</label>
+                  <input
+                    type="date"
+                    value={reminderDate}
+                    onChange={(e) => setReminderDate(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setReminderModalOpen(false)}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-lg text-xs transition cursor-pointer border-none"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveReminder}
+                  disabled={!reminderAppId || !reminderDate}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 font-semibold px-4 py-2 rounded-lg text-xs transition cursor-pointer text-white border-none"
+                >
+                  Speichern
                 </button>
               </div>
             </motion.div>

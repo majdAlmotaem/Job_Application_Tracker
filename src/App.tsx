@@ -26,6 +26,15 @@ export default function App() {
   // Key = sanitized table name (e.g. "neue_liste_2"), label = user-facing display name
   const [pendingTabs, setPendingTabs] = useState<{ key: string; label: string }[]>([]);
 
+  const [dailyGoal, setDailyGoal] = useState<number>(() => {
+    const saved = localStorage.getItem("syncsheet_daily_goal");
+    return saved ? parseInt(saved, 10) : 5;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("syncsheet_daily_goal", dailyGoal.toString());
+  }, [dailyGoal]);
+
   const loadTables = async () => {
     try {
       const response = await fetch("/api/applications/tables");
@@ -202,7 +211,7 @@ export default function App() {
 
         <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto h-full">
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<LandingPage selectedTable={selectedTable} dailyGoal={dailyGoal} />} />
             <Route
               path="/tracker"
               element={
@@ -219,6 +228,8 @@ export default function App() {
                   setPendingTabs={setPendingTabs}
                   loadTables={loadTables}
                   onRequestNewTab={handleNewTab}
+                  dailyGoal={dailyGoal}
+                  setDailyGoal={setDailyGoal}
                 />
               }
             />
