@@ -67,5 +67,10 @@ export function normalizeStatus(statusStr: string | undefined | null): JobApplic
   }
   return "Unknown";
 }
-
-
+export interface InterviewReminder {
+  id: string;
+  applicationId: string;
+  company: string;
+  date: string;
+  tableName: string;
+}
