@@ -1,3 +1,5 @@
+import { logger } from "../utils/logger";
+
 export interface GmailMessageSummary {
   id: string;
   subject: string;
@@ -183,7 +185,7 @@ export async function searchGmailMessages(
         from,
       };
     } catch (e) {
-      console.error(`Error fetching individual message details for id ${msg.id}:`, e);
+      logger.error(`Error fetching individual message details for id ${msg.id}:`, e);
       return null;
     }
   });

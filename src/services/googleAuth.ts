@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
+import { logger } from '../utils/logger';
+
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
@@ -44,7 +46,7 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     cachedAccessToken = credential.accessToken;
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
-    console.error('Sign in error:', error);
+    logger.error('Sign in error:', error);
     throw error;
   } finally {
     isSigningIn = false;

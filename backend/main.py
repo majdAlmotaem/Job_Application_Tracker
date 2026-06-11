@@ -27,10 +27,14 @@ for table_name in inspector.get_table_names():
                 conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN interview_date TEXT'))
 
 
+import time
+from backend.utils.logger import logger
+
 # Import Routers
 from backend.routers.applications import router as applications_router
 from backend.routers.csv import router as csv_router
 from backend.routers.emails import router as emails_router
+from backend.routers.job_search import router as job_search_router
 
 app = FastAPI(
     title="Job Application Tracker API",
@@ -47,10 +51,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def log_requests(request, call_next):
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    process_time = (time.perf_counter() - start_time) * 1000
+    
+    logger.info(
+        f"Request: {request.method} {request.url.path} - "
+        f"Status: {response.status_code} - "
+        f"Duration: {process_time:.2f}ms"
+    )
+    return response
+
 # Mount API Routers
 app.include_router(applications_router)
 app.include_router(csv_router)
 app.include_router(emails_router)
+app.include_router(job_search_router)
 
 # Production Static File Serving (Vite build folder: dist)
 dist_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../dist"))

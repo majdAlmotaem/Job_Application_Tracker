@@ -49,7 +49,7 @@ Die Anwendung ist als Fullstack-Webanwendung aufgebaut:
 │   ├── components/
 │   │   ├── JobTable.tsx        # Interaktive Jobtabelle (Editierbar per Doppelklick, Spalten-Resize)
 │   │   ├── Sidebar.tsx         # Collapsible Seitenleiste mit Sub-Tabs für einzelne Tabellen
-│   │   └── StatsDashboard.tsx  # Metriken und Kacheln (Zusagen, Absagen, etc.)
+│   │   └── StatsDashboard.tsx  # Metriken und Kacheln (Zusagen, Absagen, etc.) sowie interaktiver Tagesziel-Fortschrittsring
 │   ├── pages/
 │   │   ├── LandingPage.tsx     # Übersichtsseite mit Direktlinks
 │   │   ├── JobTrackerPage.tsx  # Haupt-Tracker-View mit Gmail-Sync und Tab-Verwaltung
@@ -64,6 +64,16 @@ Die Anwendung ist als Fullstack-Webanwendung aufgebaut:
 ├── tsconfig.json               # TypeScript Konfiguration
 └── vite.config.ts              # Vite Konfiguration mit Backend Proxy (/api)
 ```
+
+---
+
+## ✨ Hauptfunktionen & Features
+
+- **Automatisierter Gmail-Import:** Scannt und synchronisiert E-Mails via Google OAuth und extrahiert mithilfe der Gemini-API strukturierte Bewerbungsdaten.
+- **Tagesziel-Tracker (Daily Goal):** Setzen Sie ein tägliches Bewerbungsziel. Die Anwendung zählt Ihre am aktuellen Tag eingetragenen Bewerbungen und visualisiert den Fortschritt über einen animierten, kreisförmigen SVG-Fortschrittsring.
+- **Interview-Terminerinnerungen (Reminders):** Verknüpfen Sie anstehende Interview-Termine direkt mit Ihren Bewerbungen. Diese werden in der SQLite-Datenbank persistiert und automatisch bereinigt, sobald das Datum abgelaufen ist oder sich der Status der Bewerbung ändert.
+- **Minimalistisches Stats-Dashboard:** Behalten Sie Ihre Gesamtzahl an Bewerbungen, aktive Interviews, Angebote und Absagen auf einen Blick im Auge.
+- **Dynamische Tabellenverwaltung:** Legen Sie neue Bewerbungslisten an, benennen Sie diese um oder löschen Sie sie per Klick.
 
 ---
 
