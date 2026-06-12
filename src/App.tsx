@@ -233,7 +233,15 @@ export default function App() {
                 />
               }
             />
-            <Route path="/search" element={<JobSearchPage />} />
+            <Route
+              path="/search"
+              element={
+                <JobSearchPage
+                  availableTables={availableTables}
+                  triggerToast={triggerToast}
+                />
+              }
+            />
             <Route path="/profile" element={<ProfilePage />} />
           </Routes>
         </main>

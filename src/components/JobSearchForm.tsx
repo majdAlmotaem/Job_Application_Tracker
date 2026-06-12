@@ -15,11 +15,13 @@ interface JobSearchCriteria extends CVExtractionResult {
 interface JobSearchFormProps {
   initialValues: CVExtractionResult;
   onSubmit: (values: JobSearchCriteria) => void;
+  isSearching: boolean;
 }
 
 export const JobSearchForm: React.FC<JobSearchFormProps> = ({
   initialValues,
   onSubmit,
+  isSearching,
 }) => {
   const [jobTitle, setJobTitle] = useState(initialValues.job_title);
   const [location, setLocation] = useState(initialValues.location);
@@ -140,13 +142,36 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
         </div>
       </div>
 
-      <div className="pt-4 border-t border-white/5 flex justify-end">
+      <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex-1">
+          {isSearching && (
+            <div className="w-full max-w-md space-y-1.5 animate-fadeIn">
+              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
+                Suche läuft...
+              </span>
+              <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5 relative">
+                <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full w-full absolute top-0 left-0 animate-loading-bar shadow-[0_0_8px_rgba(59,130,246,0.4)]" />
+              </div>
+            </div>
+          )}
+        </div>
+        
         <button
           type="submit"
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 border-none text-white text-xs font-bold px-5 py-2.5 rounded-xl transition cursor-pointer shadow-lg shadow-blue-900/20"
+          disabled={isSearching}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 border-none text-white text-xs font-bold px-5 py-2.5 rounded-xl transition cursor-pointer shadow-lg shadow-blue-900/20 disabled:opacity-50"
         >
-          <Search className="h-4 w-4" />
-          <span>Jobs suchen</span>
+          {isSearching ? (
+            <>
+              <Search className="h-4 w-4 animate-pulse" />
+              <span>Sucht...</span>
+            </>
+          ) : (
+            <>
+              <Search className="h-4 w-4" />
+              <span>Jobs suchen</span>
+            </>
+          )}
         </button>
       </div>
     </form>

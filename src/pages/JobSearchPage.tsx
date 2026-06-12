@@ -18,7 +18,15 @@ interface JobSearchCriteria extends CVExtractionResult {
   date_posted: string;
 }
 
-export const JobSearchPage: React.FC = () => {
+interface JobSearchPageProps {
+  availableTables: string[];
+  triggerToast: (type: "success" | "error", message: string) => void;
+}
+
+export const JobSearchPage: React.FC<JobSearchPageProps> = ({
+  availableTables,
+  triggerToast,
+}) => {
   const [formValues, setFormValues] = useState<CVExtractionResult>({
     job_title: "",
     location: "",
@@ -50,10 +58,10 @@ export const JobSearchPage: React.FC = () => {
 
   const handleExtractionSuccess = (data: CVExtractionResult) => {
     setFormValues(data);
-    setMessage({
-      type: "success",
-      text: "Daten erfolgreich aus dem Lebenslauf extrahiert und ins Formular eingefügt!",
-    });
+    triggerToast(
+      "success",
+      "Daten erfolgreich aus dem Lebenslauf extrahiert und ins Formular eingefügt!"
+    );
   };
 
   const handleExtractionError = (error: string) => {
@@ -70,10 +78,10 @@ export const JobSearchPage: React.FC = () => {
     if (values.date_posted === "week") dateLabel = "letzte Woche";
     if (values.date_posted === "month") dateLabel = "letzter Monat";
 
-    setMessage({
-      type: "success",
-      text: `Jobsuche für "${values.job_title}" in "${values.location || "beliebiger Ort"}" (${dateLabel}) gestartet.`,
-    });
+    triggerToast(
+      "success",
+      `Jobsuche für "${values.job_title}" in "${values.location || "beliebiger Ort"}" (${dateLabel}) gestartet.`
+    );
     executeJobSearch(values);
   };
 
@@ -157,11 +165,17 @@ export const JobSearchPage: React.FC = () => {
           <JobSearchForm
             initialValues={formValues}
             onSubmit={handleFormSubmit}
+            isSearching={isSearching}
           />
         </div>
       </div>
 
-      <JobSearchResults results={searchResults} isSearching={isSearching} />
+      <JobSearchResults
+        results={searchResults}
+        isSearching={isSearching}
+        availableTables={availableTables}
+        triggerToast={triggerToast}
+      />
     </div>
   );
 };
