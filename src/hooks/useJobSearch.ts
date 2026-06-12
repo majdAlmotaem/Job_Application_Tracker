@@ -6,6 +6,7 @@ export interface JobSearchResultItem {
   location: string;
   url: string;
   match_reason: string;
+  is_saved?: boolean;
 }
 
 export interface JobSearchCriteria {

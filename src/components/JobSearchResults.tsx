@@ -8,6 +8,7 @@ interface JobSearchResultsProps {
   isSearching: boolean;
   availableTables: string[];
   triggerToast: (type: "success" | "error", message: string) => void;
+  onJobSaved: (jobUrl: string) => void;
 }
 
 export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
@@ -15,6 +16,7 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
   isSearching,
   availableTables,
   triggerToast,
+  onJobSaved,
 }) => {
   const [interactionState, setInteractionState] = useState<Record<string, "clicked" | "applied" | "saved">>({});
   const [savedTableNames, setSavedTableNames] = useState<Record<string, string>>({});
@@ -58,6 +60,9 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
         [selectedJobForSave.url]: "saved",
       }));
 
+      // Secretly notify parent to flag is_saved: true in saved searches results
+      onJobSaved(selectedJobForSave.url);
+
       triggerToast("success", `Job erfolgreich in "${tableName}" gespeichert!`);
     } catch (err: any) {
       console.error(err);
@@ -81,7 +86,7 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {results.map((job, idx) => {
-          const state = interactionState[job.url];
+          const state = interactionState[job.url] || (job.is_saved ? "saved" : undefined);
 
           return (
             <div

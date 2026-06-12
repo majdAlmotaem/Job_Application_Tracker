@@ -16,6 +16,7 @@ export interface SavedSearch {
     location: string;
     url: string;
     match_reason: string;
+    is_saved?: boolean;
   }>;
   created_at?: string;
   isPending?: boolean;

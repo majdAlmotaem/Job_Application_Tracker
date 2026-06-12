@@ -149,6 +149,18 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
     }
   };
 
+  const handleJobSaved = async (jobUrl: string) => {
+    if (!activeTab) return;
+    const updatedResults = searchResults.map((job) => {
+      if (job.url === jobUrl) {
+        return { ...job, is_saved: true };
+      }
+      return job;
+    });
+    setSearchResults(updatedResults);
+    await saveSearchToActiveTab(activeTab.criteria, updatedResults);
+  };
+
   const handleRenameConfirm = async () => {
     if (activeTab && renameValue.trim()) {
       await renameTab(activeTab.id, renameValue.trim());
@@ -301,6 +313,7 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
         isSearching={isSearching}
         availableTables={availableTables}
         triggerToast={triggerToast}
+        onJobSaved={handleJobSaved}
       />
 
       {/* Rename Modal for Search Tabs */}
