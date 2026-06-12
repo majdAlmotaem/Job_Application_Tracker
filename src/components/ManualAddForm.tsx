@@ -48,7 +48,7 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
           onSubmit={handleManualAddSubmit}
-          className="bg-[#F8FAFC] dark:bg-slate-955 border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-5 mb-6 space-y-4 overflow-hidden"
+          className="bg-[#F8FAFC] dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-5 mb-6 space-y-4 overflow-hidden"
         >
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase text-[#64748B] dark:text-slate-100 tracking-wider m-0">Bewerbung manuell erfassen</h3>
@@ -111,12 +111,12 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
                 onChange={(e) => setManualStatus(e.target.value as JobApplication["status"])}
                 className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500 cursor-pointer"
               >
-                <option value="Applied" className="bg-white dark:bg-slate-950 text-[#1E293B] dark:text-white font-semibold">Applied</option>
-                <option value="Interview" className="bg-white dark:bg-slate-955 text-[#1E293B] dark:text-white font-semibold">Interview</option>
-                <option value="Offer" className="bg-white dark:bg-slate-955 text-[#1E293B] dark:text-white font-semibold">Offer</option>
-                <option value="Rejected" className="bg-white dark:bg-slate-955 text-[#1E293B] dark:text-white font-semibold">Rejected</option>
-                <option value="Received" className="bg-white dark:bg-slate-955 text-[#1E293B] dark:text-white font-semibold">Received</option>
-                <option value="Unknown" className="bg-white dark:bg-slate-955 text-[#1E293B] dark:text-white font-semibold">Unknown</option>
+                <option value="Applied" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Applied</option>
+                <option value="Interview" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Interview</option>
+                <option value="Offer" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Offer</option>
+                <option value="Rejected" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Rejected</option>
+                <option value="Received" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Received</option>
+                <option value="Unknown" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Unknown</option>
               </select>
             </div>
             <div className="space-y-1">

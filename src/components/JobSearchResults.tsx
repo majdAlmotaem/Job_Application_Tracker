@@ -88,8 +88,8 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
               key={idx}
               className="flex flex-col justify-between bg-slate-900/20 border border-slate-800 hover:border-blue-500/20 hover:bg-slate-900/40 transition-all duration-300 rounded-2xl p-6 shadow-xl group relative overflow-hidden"
             >
-              {/* Subtle glow on hover */}
-              <div className="absolute -right-10 -top-10 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-all duration-300" />
+              {/* Subtle glow on hover - pointer-events-none prevents blocking click events on the link button */}
+              <div className="absolute -right-10 -top-10 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-all duration-300 pointer-events-none" />
 
               <div className="space-y-4 flex-1 flex flex-col justify-between">
                 <div className="space-y-4">
@@ -99,33 +99,35 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
                         <span className="inline-block text-[10px] font-bold tracking-wider uppercase text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/15">
                           {job.company}
                         </span>
-                        {state === "saved" && (
-                          <span className="inline-block text-[10px] font-bold tracking-wider uppercase text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/15 animate-fadeIn">
-                            Beworben
-                          </span>
-                        )}
                       </div>
                       <h3 className="text-base font-bold text-slate-100 leading-snug">
                         {job.job_title}
                       </h3>
                     </div>
-                    <a
-                      href={job.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="h-9 w-9 bg-slate-900 hover:bg-blue-900/20 border border-slate-800/80 hover:border-blue-500/40 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-300 transition-all duration-300 shrink-0"
-                      title="Stellenanzeige öffnen"
-                      onClick={() => {
-                        if (!state) {
-                          setInteractionState((prev) => ({
-                            ...prev,
-                            [job.url]: "clicked",
-                          }));
-                        }
-                      }}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {state === "saved" && (
+                        <span className="inline-block text-[10px] font-bold tracking-wider uppercase text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/15 animate-fadeIn">
+                          Beworben
+                        </span>
+                      )}
+                      <a
+                        href={job.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="h-9 w-9 bg-slate-900 hover:bg-blue-900/20 border border-slate-800/80 hover:border-blue-500/40 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-300 transition-all duration-300"
+                        title="Stellenanzeige öffnen"
+                        onClick={() => {
+                          if (!state) {
+                            setInteractionState((prev) => ({
+                              ...prev,
+                              [job.url]: "clicked",
+                            }));
+                          }
+                        }}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-4 text-xs text-slate-400">

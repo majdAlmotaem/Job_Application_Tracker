@@ -631,6 +631,8 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
           setSortType={setSortType}
           showAddForm={showAddForm}
           setShowAddForm={setShowAddForm}
+          onRefresh={() => loadApplications(selectedTable)}
+          isFetchingApps={isFetchingApps}
         />
 
         {/* Pending tab empty state */}

@@ -17,6 +17,8 @@ interface FilterSortBarProps {
   setSortType: (sortType: string) => void;
   showAddForm: boolean;
   setShowAddForm: React.Dispatch<React.SetStateAction<boolean>>;
+  onRefresh: () => void;
+  isFetchingApps: boolean;
 }
 
 export const FilterSortBar: React.FC<FilterSortBarProps> = ({
@@ -34,6 +36,8 @@ export const FilterSortBar: React.FC<FilterSortBarProps> = ({
   setSortType,
   showAddForm,
   setShowAddForm,
+  onRefresh,
+  isFetchingApps,
 }) => {
   return (
     <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-4 mb-4 border-b border-slate-800 gap-4">
@@ -112,13 +116,25 @@ export const FilterSortBar: React.FC<FilterSortBarProps> = ({
         </div>
       </div>
 
-      <button
-        onClick={() => setShowAddForm(!showAddForm)}
-        className="bg-slate-800 border border-white/10 hover:bg-slate-700 text-slate-200 font-semibold py-1.5 px-4 rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
-      >
-        <Plus className="h-3.5 w-3.5 text-slate-400" />
-        Eintrag hinzufügen
-      </button>
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={isFetchingApps}
+          className="bg-slate-800 border border-white/10 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-semibold p-1.5 rounded-lg text-xs transition flex items-center justify-center cursor-pointer shadow-sm h-8 w-8"
+          title="Tabelle aktualisieren"
+        >
+          <RefreshCw className={`h-4 w-4 text-slate-400 ${isFetchingApps ? "animate-spin" : ""}`} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="bg-slate-800 border border-white/10 hover:bg-slate-700 text-slate-200 font-semibold py-1.5 px-4 rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 h-8"
+        >
+          <Plus className="h-3.5 w-3.5 text-slate-400" />
+          Eintrag hinzufügen
+        </button>
+      </div>
     </div>
   );
 };
