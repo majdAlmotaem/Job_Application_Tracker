@@ -80,6 +80,7 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
+  const [isFormCollapsed, setIsFormCollapsed] = useState(false);
   
   const actionMenuRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +98,15 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
       setSearchResults(activeTab.results || []);
     }
   }, [activeSearchId, activeTab, setSearchResults]);
+
+  // Collapse form automatically if the active tab has saved results
+  useEffect(() => {
+    if (activeTab && activeTab.results && activeTab.results.length > 0) {
+      setIsFormCollapsed(true);
+    } else {
+      setIsFormCollapsed(false);
+    }
+  }, [activeSearchId]);
 
   useEffect(() => {
     if (searchError) {
@@ -154,6 +164,20 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
     const updatedResults = searchResults.map((job) => {
       if (job.url === jobUrl) {
         return { ...job, is_saved: true };
+      }
+      return job;
+    });
+    setSearchResults(updatedResults);
+    await saveSearchToActiveTab(activeTab.criteria, updatedResults);
+  };
+
+  const handleJobUnsaved = async (jobUrl: string) => {
+    if (!activeTab) return;
+    const updatedResults = searchResults.map((job) => {
+      if (job.url === jobUrl) {
+        const updated = { ...job };
+        delete updated.is_saved;
+        return updated;
       }
       return job;
     });
@@ -262,50 +286,70 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
       </div>
 
       {/* Choice Layout Container */}
-      <div className="bg-slate-900/30 border border-slate-800 rounded-2xl p-8 lg:p-10 shadow-xl space-y-8">
-        {/* Option A: CV Upload */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between bg-slate-900/10 p-4 border border-slate-800/40 rounded-xl">
-          <div className="flex items-center gap-3">
-            <div className="h-7 w-7 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 shrink-0">
-              <FileText className="w-4 h-4" />
+      <div className="bg-slate-900/30 border border-slate-800 rounded-2xl p-6 lg:p-8 shadow-xl space-y-6">
+        <button
+          onClick={() => setIsFormCollapsed(!isFormCollapsed)}
+          className="w-full flex items-center justify-between text-left focus:outline-none bg-transparent border-none p-0 cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 shrink-0">
+              <Sparkles className="w-4 h-4 text-blue-400" />
             </div>
-            <div className="space-y-0.5">
-              <h3 className="text-xs font-bold text-slate-100 uppercase tracking-wider">
-                Option A: Lebenslauf-Upload
-              </h3>
-              <p className="text-slate-200 text-[11px] leading-tight">
-                Lade deinen Lebenslauf hoch, um die Suchkriterien unten automatisch auszufüllen.
-              </p>
+            <div>
+              <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider m-0">Suchkriterien & Lebenslauf-Upload</h3>
+              <p className="text-[11px] text-slate-400 m-0 mt-0.5">CV hochladen oder Kriterien manuell eingeben</p>
             </div>
           </div>
-          <div className="shrink-0">
-            <CVAutoFiller
-              onExtractionSuccess={handleExtractionSuccess}
-              onExtractionError={handleExtractionError}
-              isCompact
-            />
-          </div>
-        </div>
+          <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isFormCollapsed ? "rotate-180" : ""}`} />
+        </button>
 
-        {/* Divider */}
-        <div className="h-[1px] w-full bg-slate-800/80" />
-
-        {/* Option B: Manual input */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center text-blue-400">
-              <Settings className="w-4 h-4" />
+        {!isFormCollapsed && (
+          <div className="space-y-6 pt-4 border-t border-slate-800/60 animate-fadeIn">
+            {/* Option A: CV Upload */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between bg-slate-900/10 p-4 border border-slate-800/40 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="h-7 w-7 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 shrink-0">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-xs font-bold text-slate-100 uppercase tracking-wider">
+                    Option A: Lebenslauf-Upload
+                  </h3>
+                  <p className="text-slate-200 text-[11px] leading-tight">
+                    Lade deinen Lebenslauf hoch, um die Suchkriterien unten automatisch auszufüllen.
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0">
+                <CVAutoFiller
+                  onExtractionSuccess={handleExtractionSuccess}
+                  onExtractionError={handleExtractionError}
+                  isCompact
+                />
+              </div>
             </div>
-            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-              Option B: Suchkriterien befüllen
-            </h3>
+
+            {/* Divider */}
+            <div className="h-[1px] w-full bg-slate-800/80" />
+
+            {/* Option B: Manual input */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center text-blue-400">
+                  <Settings className="w-4 h-4" />
+                </div>
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Option B: Suchkriterien befüllen
+                </h3>
+              </div>
+              <JobSearchForm
+                initialValues={formValues}
+                onSubmit={handleFormSubmit}
+                isSearching={isSearching}
+              />
+            </div>
           </div>
-          <JobSearchForm
-            initialValues={formValues}
-            onSubmit={handleFormSubmit}
-            isSearching={isSearching}
-          />
-        </div>
+        )}
       </div>
 
       <JobSearchResults
@@ -314,6 +358,7 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
         availableTables={availableTables}
         triggerToast={triggerToast}
         onJobSaved={handleJobSaved}
+        onJobUnsaved={handleJobUnsaved}
       />
 
       {/* Rename Modal for Search Tabs */}

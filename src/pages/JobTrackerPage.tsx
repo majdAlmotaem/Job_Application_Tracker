@@ -633,6 +633,7 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
           setShowAddForm={setShowAddForm}
           onRefresh={() => loadApplications(selectedTable)}
           isFetchingApps={isFetchingApps}
+          showHinweis={!isPendingTab && applications.length > 0}
         />
 
         {/* Pending tab empty state */}
@@ -683,13 +684,7 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
           handleManualAddSubmit={handleManualAddSubmit}
         />
 
-        {/* Doppelklick-Hinweis */}
-        {!isPendingTab && applications.length > 0 && (
-          <div className="text-[11px] text-[#64748B] dark:text-slate-400 mb-3.5 flex items-center gap-1.5 bg-slate-50/50 dark:bg-slate-900/10 px-3 py-2 rounded-lg border border-[#E2E8F0] dark:border-slate-800/80 w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            <span>Tipp: Doppelklick auf eine Zelle (Unternehmen, Stelle, Datum, Standort, Anstellungsart), um sie direkt zu bearbeiten.</span>
-          </div>
-        )}
+
 
         {/* Job Table View */}
         <JobTable

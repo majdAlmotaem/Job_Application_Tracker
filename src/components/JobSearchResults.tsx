@@ -9,6 +9,7 @@ interface JobSearchResultsProps {
   availableTables: string[];
   triggerToast: (type: "success" | "error", message: string) => void;
   onJobSaved: (jobUrl: string) => void;
+  onJobUnsaved: (jobUrl: string) => void;
 }
 
 export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
@@ -17,12 +18,28 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
   availableTables,
   triggerToast,
   onJobSaved,
+  onJobUnsaved,
 }) => {
   const [interactionState, setInteractionState] = useState<Record<string, "clicked" | "applied" | "saved">>({});
   const [savedTableNames, setSavedTableNames] = useState<Record<string, string>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedJobForSave, setSelectedJobForSave] = useState<JobSearchResultItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const handleUndoSave = (jobUrl: string) => {
+    setInteractionState((prev) => {
+      const next = { ...prev };
+      delete next[jobUrl];
+      return next;
+    });
+    setSavedTableNames((prev) => {
+      const next = { ...prev };
+      delete next[jobUrl];
+      return next;
+    });
+    onJobUnsaved(jobUrl);
+    triggerToast("success", "Bewerbungs-Status zurückgesetzt.");
+  };
 
   const handleSaveToDatabase = async (tableName: string) => {
     if (!selectedJobForSave) return;
@@ -208,18 +225,28 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
                     )}
 
                     {state === "saved" && (
-                      <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold animate-fadeIn">
-                        <div className="h-5 w-5 bg-emerald-500/10 rounded-full flex items-center justify-center shrink-0">
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        </div>
-                        <span>
-                          Beworben! Eingetragen in{" "}
-                          <span className="underline decoration-emerald-500/30">
-                            {savedTableNames[job.url] === "job_applications"
-                              ? "Standardliste (job_applications)"
-                              : savedTableNames[job.url]}
+                      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-emerald-400 text-xs font-semibold animate-fadeIn">
+                        <div className="flex items-center gap-2">
+                          <div className="h-5 w-5 bg-emerald-500/10 rounded-full flex items-center justify-center shrink-0">
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          </div>
+                          <span>
+                            Beworben! Eingetragen in{" "}
+                            <span className="underline decoration-emerald-500/30">
+                              {savedTableNames[job.url] === "job_applications"
+                                ? "Standardliste (job_applications)"
+                                : (savedTableNames[job.url] || "Bewerbungs-Tracker")}
+                            </span>
                           </span>
-                        </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleUndoSave(job.url)}
+                          className="bg-transparent hover:underline text-[10px] text-slate-400 hover:text-rose-450 font-semibold cursor-pointer border-none p-0 flex items-center gap-1 transition shrink-0"
+                          title="Status zurücksetzen"
+                        >
+                          Zurücknehmen
+                        </button>
                       </div>
                     )}
                   </div>

@@ -19,6 +19,7 @@ interface FilterSortBarProps {
   setShowAddForm: React.Dispatch<React.SetStateAction<boolean>>;
   onRefresh: () => void;
   isFetchingApps: boolean;
+  showHinweis: boolean;
 }
 
 export const FilterSortBar: React.FC<FilterSortBarProps> = ({
@@ -38,6 +39,7 @@ export const FilterSortBar: React.FC<FilterSortBarProps> = ({
   setShowAddForm,
   onRefresh,
   isFetchingApps,
+  showHinweis,
 }) => {
   return (
     <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-4 mb-4 border-b border-slate-800 gap-4">
@@ -114,6 +116,13 @@ export const FilterSortBar: React.FC<FilterSortBarProps> = ({
             <option value="status_asc" className="bg-slate-950 text-white font-semibold">Status</option>
           </select>
         </div>
+
+        {showHinweis && (
+          <div className="text-[11px] text-[#64748B] dark:text-slate-400 flex items-center gap-1.5 py-1 px-1 animate-fadeIn select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+            <span>Hinweis: Doppelklick auf eine Zelle (Unternehmen, Stelle, Datum, Standort, Anstellungsart), um sie direkt zu bearbeiten.</span>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
