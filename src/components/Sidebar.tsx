@@ -15,6 +15,7 @@ import {
   Plus,
   Clock,
 } from "lucide-react";
+import { SavedSearch } from "../hooks/useSavedSearches";
 
 interface PendingTab {
   key: string;
@@ -33,6 +34,14 @@ interface SidebarProps {
   selectedTable: string;
   setSelectedTable: (val: string) => void;
   onRequestNewTab: () => void;
+
+  // New props for Saved Searches
+  savedTabs: SavedSearch[];
+  activeSearchId: number | null;
+  setActiveSearchId: (id: number | null) => void;
+  createNewTab: (name?: string) => Promise<any>;
+  deleteTab: (id: number) => Promise<void>;
+  renameTab: (id: number, newName: string) => Promise<any>;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -47,9 +56,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
   selectedTable,
   setSelectedTable,
   onRequestNewTab,
+
+  savedTabs,
+  activeSearchId,
+  setActiveSearchId,
+  createNewTab,
+  deleteTab,
+  renameTab,
 }) => {
   const navigate = useNavigate();
   const [trackerOpen, setTrackerOpen] = useState(true);
+  const [searchTabsOpen, setSearchTabsOpen] = useState(true);
 
   const formatTableName = (name: string) => {
     if (name === "job_applications") return "Standard-Tabelle";
@@ -168,7 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onClick={() => { setSelectedTable(tbl); navigate("/tracker"); }}
                       className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-2 border-none cursor-pointer ${
                         isActive
-                          ? "bg-blue-500/10 text-blue-400"
+                          ? "text-blue-400 bg-transparent"
                           : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/30"
                       }`}
                     >
@@ -187,7 +204,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onClick={() => { setSelectedTable(pt.key); navigate("/tracker"); }}
                       className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-2 border-none cursor-pointer ${
                         isActive
-                          ? "bg-amber-500/10 text-amber-400"
+                          ? "text-amber-400 bg-transparent"
                           : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
                       }`}
                       title="Noch nicht gespeichert – füge Einträge hinzu"
@@ -222,21 +239,98 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* Job-Suche */}
-          <NavLink
-            to="/search"
-            className={({ isActive }) =>
-              `flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-lg transition ${
-                isActive
-                  ? "bg-blue-500/10 border border-blue-500/15 text-blue-400"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
-              }`
-            }
-            title={isSidebarCollapsed ? "Job-Suche" : undefined}
-          >
-            <Search className="h-4 w-4 shrink-0" />
-            {!isSidebarCollapsed && <span>Job-Suche</span>}
-          </NavLink>
+          {/* ── Job-Suche Collapsible section ── */}
+          <div className="space-y-0.5">
+            {/* Row: NavLink + Collapse Chevron */}
+            <div className="flex items-center gap-1">
+              <NavLink
+                to="/search"
+                className={({ isActive }) =>
+                  `flex-1 flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-lg transition ${
+                    isActive
+                      ? "bg-blue-500/10 border border-blue-500/15 text-blue-400"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
+                  }`
+                }
+                title={isSidebarCollapsed ? "Job-Suche" : undefined}
+              >
+                <Search className="h-4 w-4 shrink-0" />
+                {!isSidebarCollapsed && <span className="flex-1">Job-Suche</span>}
+              </NavLink>
+
+              {!isSidebarCollapsed && savedTabs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTabsOpen((v) => !v)}
+                  className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition cursor-pointer shrink-0 mr-1"
+                  title={searchTabsOpen ? "Suchen ausblenden" : "Suchen einblenden"}
+                >
+                  {searchTabsOpen ? (
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Sub-tabs list — shown when expanded & searchTabsOpen */}
+            {!isSidebarCollapsed && searchTabsOpen && savedTabs.length > 0 && (
+              <div className="pl-4 pr-1 py-1 space-y-0.5 border-l border-white/5 ml-5 mt-0.5 select-none">
+                {savedTabs.map((tab) => {
+                  const isActive = activeSearchId === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveSearchId(tab.id);
+                        navigate("/search");
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-2 border-none bg-transparent cursor-pointer truncate ${
+                        isActive
+                          ? "text-blue-400 bg-transparent"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/30"
+                      }`}
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                          isActive ? "bg-blue-400" : "bg-slate-600"
+                        }`}
+                      />
+                      <span className="truncate">{tab.tab_name}</span>
+                    </button>
+                  );
+                })}
+
+                {/* "+" new search button */}
+                <button
+                  onClick={() => {
+                    createNewTab();
+                    navigate("/search");
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-2 border-none cursor-pointer text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 mt-0.5"
+                  title="Neue Suche erstellen"
+                >
+                  <Plus className="h-3.5 w-3.5 shrink-0" />
+                  <span>Neue Suche</span>
+                </button>
+              </div>
+            )}
+
+            {/* Collapsed: show "+" icon for quick new search tab */}
+            {isSidebarCollapsed && (
+              <button
+                onClick={() => {
+                  createNewTab();
+                  navigate("/search");
+                }}
+                className="w-full flex justify-center py-1.5 text-slate-500 hover:text-blue-400 transition cursor-pointer"
+                title="Neue Suche"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
 
           {/* Profil */}
           <NavLink

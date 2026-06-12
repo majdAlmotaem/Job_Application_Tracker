@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 
 class CVExtractionResult(BaseModel):
     job_title: str
@@ -23,4 +24,23 @@ class JobSearchResultItem(BaseModel):
 
 class JobSearchResponse(BaseModel):
     results: List[JobSearchResultItem]
+
+class SavedSearchBase(BaseModel):
+    tab_name: str
+    criteria: dict
+    results: List[dict]
+
+class SavedSearchResponse(SavedSearchBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class SavedSearchUpdate(BaseModel):
+    tab_name: Optional[str] = None
+    criteria: Optional[dict] = None
+    results: Optional[List[dict]] = None
+
+
 

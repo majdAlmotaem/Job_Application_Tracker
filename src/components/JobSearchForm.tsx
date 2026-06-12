@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 
 interface CVExtractionResult {
   job_title: string;
@@ -29,6 +29,11 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
   const [keywordsInput, setKeywordsInput] = useState(initialValues.keywords.join(", "));
   const [datePosted, setDatePosted] = useState("anytime");
 
+  // Simulated search progress state
+  const [progress, setProgress] = useState(0);
+  const [phase, setPhase] = useState("Suche wird gestartet...");
+  const [details, setDetails] = useState("Verbindung zum KI-Modell wird hergestellt");
+
   // Synchronize state when initialValues prop changes (e.g. after CV upload)
   useEffect(() => {
     setJobTitle(initialValues.job_title);
@@ -36,6 +41,44 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
     setEmploymentType(initialValues.employment_type);
     setKeywordsInput(initialValues.keywords.join(", "));
   }, [initialValues]);
+
+  // Handle simulated progress and messages
+  useEffect(() => {
+    if (isSearching) {
+      setProgress(5);
+      setPhase("Suchanfrage wird formatiert...");
+      setDetails("Kriterien werden analysiert");
+
+      const interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 95) {
+            clearInterval(interval);
+            return 95;
+          }
+          const next = prev + Math.floor(Math.random() * 8) + 2;
+
+          if (next > 75) {
+            setPhase("Stellenanzeigen werden extrahiert...");
+            setDetails("Die passendsten Angebote werden ausgewählt");
+          } else if (next > 50) {
+            setPhase("Live-Websuche läuft...");
+            setDetails("Google-Suchergebnisse werden analysiert");
+          } else if (next > 25) {
+            setPhase("Suchkriterien werden verarbeitet...");
+            setDetails("Gemini initiiert die Google-Suche");
+          }
+
+          return Math.min(next, 95);
+        });
+      }, 500);
+
+      return () => {
+        clearInterval(interval);
+      };
+    } else {
+      setProgress(0);
+    }
+  }, [isSearching]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,37 +185,52 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
         </div>
       </div>
 
-      <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex-1">
-          {isSearching && (
-            <div className="w-full max-w-md space-y-1.5 animate-fadeIn">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
-                Suche läuft...
-              </span>
-              <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5 relative">
-                <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full w-full absolute top-0 left-0 animate-loading-bar shadow-[0_0_8px_rgba(59,130,246,0.4)]" />
+      <div className="pt-4 border-t border-white/5 flex flex-col gap-4">
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={isSearching}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 border-none text-white text-xs font-bold px-5 py-2.5 rounded-xl transition cursor-pointer shadow-lg shadow-blue-900/20 disabled:opacity-50"
+          >
+            {isSearching ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span>Sucht...</span>
+              </>
+            ) : (
+              <>
+                <Search className="h-4 w-4" />
+                <span>Jobs suchen</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {isSearching && (
+          <div className="relative overflow-hidden rounded-xl border border-blue-500/20 bg-slate-900/40 p-4 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4 animate-fadeIn w-full">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                <RefreshCw className="h-5 w-5 animate-spin" />
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-bold text-slate-100">{phase}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">{details}</p>
               </div>
             </div>
-          )}
-        </div>
-        
-        <button
-          type="submit"
-          disabled={isSearching}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 border-none text-white text-xs font-bold px-5 py-2.5 rounded-xl transition cursor-pointer shadow-lg shadow-blue-900/20 disabled:opacity-50"
-        >
-          {isSearching ? (
-            <>
-              <Search className="h-4 w-4 animate-pulse" />
-              <span>Sucht...</span>
-            </>
-          ) : (
-            <>
-              <Search className="h-4 w-4" />
-              <span>Jobs suchen</span>
-            </>
-          )}
-        </button>
+            <div className="w-full md:max-w-xs space-y-1.5 shrink-0">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold px-0.5">
+                <span>Fortschritt</span>
+                <span className="text-blue-400 font-bold">{Math.round(progress)}%</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5 relative">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(59,130,246,0.4)]"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </form>
   );

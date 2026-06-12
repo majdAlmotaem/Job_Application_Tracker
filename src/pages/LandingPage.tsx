@@ -1,6 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Table, Search, User, Sparkles } from "lucide-react";
+import Lottie from "lottie-react";
+import catAnimation from "../assets/animations/Cat playing animation.json";
 
 export const LandingPage: React.FC = () => {
   return (
@@ -10,16 +12,21 @@ export const LandingPage: React.FC = () => {
         <div className="absolute right-0 top-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
         <div className="absolute left-1/3 bottom-0 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
 
-        <div className="relative z-10 space-y-4">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-500/10 border border-blue-500/15 text-blue-400">
-            <Sparkles className="h-3.5 w-3.5" /> Willkommen bei SyncSheet
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-4 flex-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-500/10 border border-blue-500/15 text-blue-400">
+              <Sparkles className="h-3.5 w-3.5" /> Willkommen bei SyncSheet
+            </div>
+            <h1 className="text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
+              Ihre Bewerbungen, intelligent organisiert.
+            </h1>
+            <p className="text-slate-355 text-sm max-w-2xl leading-relaxed">
+              Synchronisieren Sie Ihren Gmail-Posteingang automatisch, analysieren Sie Rückmeldungen per KI und behalten Sie den Überblick über alle Jobangebote und Interviewtermine an einem einzigen, geschützten Ort.
+            </p>
           </div>
-          <h1 className="text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
-            Ihre Bewerbungen, intelligent organisiert.
-          </h1>
-          <p className="text-slate-355 text-sm max-w-2xl leading-relaxed">
-            Synchronisieren Sie Ihren Gmail-Posteingang automatisch, analysieren Sie Rückmeldungen per KI und behalten Sie den Überblick über alle Jobangebote und Interviewtermine an einem einzigen, geschützten Ort.
-          </p>
+          <div className="w-48 h-20 md:w-60 md:h-26 flex items-center justify-center shrink-0 overflow-hidden select-none -scale-x-100">
+            <Lottie animationData={catAnimation} loop={true} className="w-full h-full object-contain" />
+          </div>
         </div>
       </header>
 

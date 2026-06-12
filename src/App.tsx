@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { User } from "firebase/auth";
 import { Mail, RefreshCw, AlertCircle } from "lucide-react";
@@ -9,6 +9,8 @@ import { LandingPage } from "./pages/LandingPage";
 import { JobTrackerPage } from "./pages/JobTrackerPage";
 import { JobSearchPage } from "./pages/JobSearchPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { useSavedSearches } from "./hooks/useSavedSearches";
+
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -34,6 +36,8 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("syncsheet_daily_goal", dailyGoal.toString());
   }, [dailyGoal]);
+
+
 
   const loadTables = async () => {
     try {
@@ -119,9 +123,25 @@ export default function App() {
     }
   }, [notification]);
 
-  const triggerToast = (type: "success" | "error", message: string) => {
+  const triggerToast = useCallback((type: "success" | "error", message: string) => {
     setNotification({ type, message });
-  };
+  }, []);
+
+  const {
+    savedTabs,
+    activeSearchId,
+    setActiveSearchId,
+    loadTabs,
+    createNewTab,
+    saveSearchToActiveTab,
+    deleteTab,
+    renameTab,
+  } = useSavedSearches(triggerToast);
+
+  // Initialize tabs from database
+  useEffect(() => {
+    loadTabs();
+  }, []);
 
   const triggerConfirm = (options: {
     title: string;
@@ -207,6 +227,12 @@ export default function App() {
           selectedTable={selectedTable}
           setSelectedTable={setSelectedTable}
           onRequestNewTab={handleNewTab}
+          savedTabs={savedTabs}
+          activeSearchId={activeSearchId}
+          setActiveSearchId={setActiveSearchId}
+          createNewTab={createNewTab}
+          deleteTab={deleteTab}
+          renameTab={renameTab}
         />
 
         <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto h-full">
@@ -239,6 +265,14 @@ export default function App() {
                 <JobSearchPage
                   availableTables={availableTables}
                   triggerToast={triggerToast}
+                  triggerConfirm={triggerConfirm}
+                  savedTabs={savedTabs}
+                  activeSearchId={activeSearchId}
+                  setActiveSearchId={setActiveSearchId}
+                  createNewTab={createNewTab}
+                  deleteTab={deleteTab}
+                  renameTab={renameTab}
+                  saveSearchToActiveTab={saveSearchToActiveTab}
                 />
               }
             />

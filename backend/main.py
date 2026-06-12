@@ -11,6 +11,7 @@ load_dotenv()
 # Trigger SQLite database migrations / table creation
 from backend.database import Base, engine
 from backend.models.job_application import JobApplicationModel
+from backend.models.saved_search import SavedSearchModel
 Base.metadata.create_all(bind=engine)
 
 # Dynamically run schema migration to add source_file and interview_date columns if they don't exist
@@ -22,7 +23,7 @@ for table_name in inspector.get_table_names():
         if "source_file" not in columns and table_name == "job_applications":
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE job_applications ADD COLUMN source_file VARCHAR DEFAULT 'Default'"))
-        if "interview_date" not in columns:
+        if "interview_date" not in columns and table_name != "saved_searches":
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN interview_date TEXT'))
 
@@ -34,7 +35,7 @@ from backend.utils.logger import logger
 from backend.routers.applications import router as applications_router
 from backend.routers.csv import router as csv_router
 from backend.routers.emails import router as emails_router
-from backend.routers.job_search import router as job_search_router
+from backend.routers.job_search import router as job_search_router, searches_router
 
 app = FastAPI(
     title="Job Application Tracker API",
@@ -69,6 +70,7 @@ app.include_router(applications_router)
 app.include_router(csv_router)
 app.include_router(emails_router)
 app.include_router(job_search_router)
+app.include_router(searches_router)
 
 # Production Static File Serving (Vite build folder: dist)
 dist_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../dist"))

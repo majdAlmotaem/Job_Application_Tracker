@@ -41,10 +41,13 @@ export const useJobSearch = () => {
       }
 
       const data = await response.json();
-      setSearchResults(data.results || []);
+      const results = data.results || [];
+      setSearchResults(results);
+      return results;
     } catch (err: any) {
       console.error("Fehler bei der Jobsuche:", err);
       setSearchError(err.message || "Ein unerwarteter Fehler ist aufgetreten.");
+      return null;
     } finally {
       setIsSearching(false);
     }
@@ -52,6 +55,7 @@ export const useJobSearch = () => {
 
   return {
     searchResults,
+    setSearchResults,
     isSearching,
     searchError,
     executeJobSearch,

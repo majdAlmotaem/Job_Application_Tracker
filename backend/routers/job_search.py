@@ -95,3 +95,68 @@ async def search_jobs(request: JobSearchRequest):
             detail=f"Fehler bei der Live-Jobsuche: {error_msg}"
         )
 
+
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from backend.database import get_db
+from backend.models.saved_search import SavedSearchModel
+from backend.schemas.job_search import SavedSearchBase, SavedSearchResponse, SavedSearchUpdate
+from typing import List
+
+searches_router = APIRouter(prefix="/api/searches", tags=["saved_searches"])
+
+from sqlalchemy import text
+
+@searches_router.get("", response_model=List[SavedSearchResponse])
+def get_searches(db: Session = Depends(get_db)):
+    try:
+        # Check if saved_searches table exists in SQLite database yet
+        result = db.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='saved_searches'"))
+        if not result.fetchone():
+            logger.info("Table 'saved_searches' does not exist in database yet.")
+            return []
+        return db.query(SavedSearchModel).order_by(SavedSearchModel.id.asc()).all()
+    except Exception as e:
+        logger.error(f"Error querying saved searches: {e}")
+        return []
+
+@searches_router.post("", response_model=SavedSearchResponse)
+def create_search(search: SavedSearchBase, db: Session = Depends(get_db)):
+    db_search = SavedSearchModel(
+        tab_name=search.tab_name,
+        criteria=search.criteria,
+        results=search.results
+    )
+    db.add(db_search)
+    db.commit()
+    db.refresh(db_search)
+    return db_search
+
+@searches_router.put("/{search_id}", response_model=SavedSearchResponse)
+def update_search(search_id: int, search: SavedSearchUpdate, db: Session = Depends(get_db)):
+    db_search = db.query(SavedSearchModel).filter(SavedSearchModel.id == search_id).first()
+    if not db_search:
+        raise HTTPException(status_code=404, detail="Saved search not found")
+    
+    if search.tab_name is not None:
+        db_search.tab_name = search.tab_name
+    if search.criteria is not None:
+        db_search.criteria = search.criteria
+    if search.results is not None:
+        db_search.results = search.results
+        
+    db.commit()
+    db.refresh(db_search)
+    return db_search
+
+@searches_router.delete("/{search_id}")
+def delete_search(search_id: int, db: Session = Depends(get_db)):
+    db_search = db.query(SavedSearchModel).filter(SavedSearchModel.id == search_id).first()
+    if not db_search:
+        raise HTTPException(status_code=404, detail="Saved search not found")
+    
+    db.delete(db_search)
+    db.commit()
+    return {"status": "success", "message": "Search deleted successfully"}
+
+

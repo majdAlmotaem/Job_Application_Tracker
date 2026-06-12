@@ -25,7 +25,7 @@ def read_tables(db: Session = Depends(get_db)):
     Returns the list of all available user tables in the SQLite database.
     """
     try:
-        result = db.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"))
+        result = db.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'saved_searches'"))
         tables = [row[0] for row in result.fetchall()]
         return tables
     except Exception as e:
