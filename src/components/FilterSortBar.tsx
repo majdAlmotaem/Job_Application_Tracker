@@ -82,32 +82,32 @@ export const FilterSortBar: React.FC<FilterSortBarProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <Filter className="h-3.5 w-3.5 text-[#64748B] dark:text-slate-400" />
+          <Filter className="h-3.5 w-3.5 text-[#64748B] dark:text-slate-250" />
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-slate-800 border border-slate-700 py-1 px-2.5 rounded-lg text-xs text-slate-100 font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+            className="bg-slate-900 border border-slate-800 py-1.5 px-3 rounded-lg text-xs text-white font-semibold cursor-pointer focus:outline-none focus:border-blue-500"
           >
-            <option value="All">Alle Status</option>
-            <option value="Applied">Applied</option>
-            <option value="Interview">Interview</option>
-            <option value="Offer">Offers</option>
-            <option value="Rejected">Rejected</option>
+            <option value="All" className="bg-slate-950 text-white font-semibold">Alle Status</option>
+            <option value="Applied" className="bg-slate-950 text-white font-semibold">Applied</option>
+            <option value="Interview" className="bg-slate-950 text-white font-semibold">Interview</option>
+            <option value="Offer" className="bg-slate-950 text-white font-semibold">Offers</option>
+            <option value="Rejected" className="bg-slate-950 text-white font-semibold">Rejected</option>
           </select>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-[#64748B] dark:text-slate-400 font-medium">Sortieren:</span>
+          <span className="text-xs text-[#64748B] dark:text-slate-100 font-semibold">Sortieren:</span>
           <select
             value={sortType}
             onChange={(e) => setSortType(e.target.value)}
-            className="bg-slate-800 border border-slate-700 py-1 px-2.5 rounded-lg text-xs text-slate-100 font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+            className="bg-slate-900 border border-slate-800 py-1.5 px-3 rounded-lg text-xs text-white font-semibold cursor-pointer focus:outline-none focus:border-blue-500"
           >
-            <option value="date_desc">Neueste zuerst</option>
-            <option value="date_asc">Älteste zuerst</option>
-            <option value="company_asc">Unternehmen (A-Z)</option>
-            <option value="company_desc">Unternehmen (Z-A)</option>
-            <option value="status_asc">Status</option>
+            <option value="date_desc" className="bg-slate-950 text-white font-semibold">Neueste zuerst</option>
+            <option value="date_asc" className="bg-slate-950 text-white font-semibold">Älteste zuerst</option>
+            <option value="company_asc" className="bg-slate-950 text-white font-semibold">Unternehmen (A-Z)</option>
+            <option value="company_desc" className="bg-slate-950 text-white font-semibold">Unternehmen (Z-A)</option>
+            <option value="status_asc" className="bg-slate-950 text-white font-semibold">Status</option>
           </select>
         </div>
       </div>

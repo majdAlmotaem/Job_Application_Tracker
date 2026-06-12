@@ -41,14 +41,14 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
 
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Unternehmen</label>
+                <label className="text-[10px] uppercase font-bold text-slate-100 block mb-1">Unternehmen</label>
                 <select
                   value={reminderAppId}
                   onChange={(e) => setReminderAppId(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-slate-205 focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
+                  className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-blue-500 font-semibold cursor-pointer"
                 >
                   {applications.filter((app) => app.status === "Interview").map((app) => (
-                    <option key={app.id} value={app.id} className="bg-slate-900 text-slate-200">
+                    <option key={app.id} value={app.id} className="bg-slate-950 text-white font-semibold">
                       {app.company} ({app.role})
                     </option>
                   ))}
@@ -56,12 +56,12 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Datum</label>
+                <label className="text-[10px] uppercase font-bold text-slate-100 block mb-1">Datum</label>
                 <input
                   type="date"
                   value={reminderDate}
                   onChange={(e) => setReminderDate(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-medium"
+                  className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-blue-500 font-semibold"
                 />
               </div>
             </div>

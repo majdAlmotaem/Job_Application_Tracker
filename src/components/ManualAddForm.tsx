@@ -51,7 +51,7 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
           className="bg-[#F8FAFC] dark:bg-slate-955 border border-[#E2E8F0] dark:border-slate-800 rounded-xl p-5 mb-6 space-y-4 overflow-hidden"
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase text-[#64748B] dark:text-slate-400 tracking-wider m-0">Bewerbung manuell erfassen</h3>
+            <h3 className="text-xs font-bold uppercase text-[#64748B] dark:text-slate-100 tracking-wider m-0">Bewerbung manuell erfassen</h3>
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
@@ -63,69 +63,69 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Unternehmen *</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Unternehmen *</label>
               <input
                 type="text"
                 placeholder="z.B. FINOVESTA GmbH"
                 value={manualCompany}
                 required
                 onChange={(e) => setManualCompany(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
+                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Stelle / Rolle *</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Stelle / Rolle *</label>
               <input
                 type="text"
                 placeholder="z.B. Softwareentwickler"
                 value={manualRole}
                 required
                 onChange={(e) => setManualRole(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
+                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Anstellungsart</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Anstellungsart</label>
               <input
                 type="text"
                 placeholder="z.B. Festanstellung / Vollzeit"
                 value={manualAnstellungsart}
                 onChange={(e) => setManualAnstellungsart(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
+                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Standort</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Standort</label>
               <input
                 type="text"
                 placeholder="z.B. Düsseldorf, Germany"
                 value={manualLocation}
                 onChange={(e) => setManualLocation(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
+                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Status</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Status</label>
               <select
                 value={manualStatus}
                 onChange={(e) => setManualStatus(e.target.value as JobApplication["status"])}
-                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-slate-205 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
+                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500 cursor-pointer"
               >
-                <option value="Applied" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-slate-200">Applied</option>
-                <option value="Interview" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-slate-200">Interview</option>
-                <option value="Offer" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-slate-200">Offer</option>
-                <option value="Rejected" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-slate-200">Rejected</option>
-                <option value="Received" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-slate-200">Received</option>
-                <option value="Unknown" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-slate-200">Unknown</option>
+                <option value="Applied" className="bg-white dark:bg-slate-950 text-[#1E293B] dark:text-white font-semibold">Applied</option>
+                <option value="Interview" className="bg-white dark:bg-slate-955 text-[#1E293B] dark:text-white font-semibold">Interview</option>
+                <option value="Offer" className="bg-white dark:bg-slate-955 text-[#1E293B] dark:text-white font-semibold">Offer</option>
+                <option value="Rejected" className="bg-white dark:bg-slate-955 text-[#1E293B] dark:text-white font-semibold">Rejected</option>
+                <option value="Received" className="bg-white dark:bg-slate-955 text-[#1E293B] dark:text-white font-semibold">Received</option>
+                <option value="Unknown" className="bg-white dark:bg-slate-955 text-[#1E293B] dark:text-white font-semibold">Unknown</option>
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-[#64748B] dark:text-slate-400 block">Datum</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Datum</label>
               <input
                 type="date"
                 value={manualDate}
                 onChange={(e) => setManualDate(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-slate-205 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
+                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
               />
             </div>
           </div>

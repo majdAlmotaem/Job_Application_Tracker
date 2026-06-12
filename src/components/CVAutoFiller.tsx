@@ -11,11 +11,13 @@ interface CVExtractionResult {
 interface CVAutoFillerProps {
   onExtractionSuccess: (data: CVExtractionResult) => void;
   onExtractionError: (error: string) => void;
+  isCompact?: boolean;
 }
 
 export const CVAutoFiller: React.FC<CVAutoFillerProps> = ({
   onExtractionSuccess,
   onExtractionError,
+  isCompact = false,
 }) => {
   const [isDragActive, setIsDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -140,6 +142,70 @@ export const CVAutoFiller: React.FC<CVAutoFillerProps> = ({
   const onButtonClick = () => {
     fileInputRef.current?.click();
   };
+
+  if (isCompact) {
+    return (
+      <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf"
+          onChange={handleFileChange}
+          className="hidden"
+          disabled={isUploading}
+        />
+        <button
+          type="button"
+          onClick={onButtonClick}
+          disabled={isUploading}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all duration-300 ${
+            status === "loading"
+              ? "bg-slate-900 border-slate-800 text-slate-500 cursor-not-allowed"
+              : status === "success"
+              ? "bg-emerald-950/40 border-emerald-900/40 text-emerald-400 hover:bg-emerald-900/20"
+              : status === "error"
+              ? "bg-rose-950/40 border-rose-900/40 text-rose-400 hover:bg-rose-900/20"
+              : "bg-slate-900 border-slate-800 hover:border-blue-500/30 hover:bg-blue-950/5 text-slate-300"
+          }`}
+        >
+          {status === "loading" ? (
+            <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+          ) : status === "success" ? (
+            <CheckCircle className="h-4 w-4 text-emerald-400" />
+          ) : status === "error" ? (
+            <AlertCircle className="h-4 w-4 text-rose-400" />
+          ) : (
+            <FileUp className="h-4 w-4 text-slate-400" />
+          )}
+          <span>
+            {status === "loading"
+              ? "Wird geladen..."
+              : status === "success"
+              ? "Erfolgreich eingelesen"
+              : status === "error"
+              ? "Fehler bei der Analyse"
+              : "Lebenslauf hochladen (PDF)"}
+          </span>
+        </button>
+        {fileName && (
+          <span className="text-xs text-slate-400 truncate max-w-xs" title={fileName}>
+            {fileName}
+          </span>
+        )}
+        {status === "loading" && (
+          <div className="flex items-center gap-2 grow max-w-[180px]">
+            <span className="text-[10px] text-slate-500 font-bold shrink-0">{Math.round(progress)}%</span>
+            <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5 relative">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

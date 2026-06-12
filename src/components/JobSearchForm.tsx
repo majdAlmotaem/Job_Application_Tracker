@@ -56,7 +56,7 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Job Title */}
         <div className="space-y-1.5">
-          <label htmlFor="jobTitle" className="text-xs font-bold text-slate-300">
+          <label htmlFor="jobTitle" className="text-xs font-semibold text-slate-100 block">
             Beruf / Position
           </label>
           <input
@@ -65,14 +65,14 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
             value={jobTitle}
             onChange={(e) => setJobTitle(e.target.value)}
             placeholder="z.B. Softwareentwickler"
-            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
             required
           />
         </div>
 
         {/* Location */}
         <div className="space-y-1.5">
-          <label htmlFor="location" className="text-xs font-bold text-slate-300">
+          <label htmlFor="location" className="text-xs font-semibold text-slate-100 block">
             Ort
           </label>
           <input
@@ -81,52 +81,52 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="z.B. Düsseldorf oder Remote"
-            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
           />
         </div>
 
         {/* Employment Type */}
         <div className="space-y-1.5">
-          <label htmlFor="employmentType" className="text-xs font-bold text-slate-300">
+          <label htmlFor="employmentType" className="text-xs font-semibold text-slate-100 block">
             Anstellungsart
           </label>
           <select
             id="employmentType"
             value={employmentType}
             onChange={(e) => setEmploymentType(e.target.value)}
-            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 cursor-pointer"
           >
-            <option value="Vollzeit">Vollzeit</option>
-            <option value="Teilzeit">Teilzeit</option>
-            <option value="Freie Mitarbeit">Freie Mitarbeit</option>
-            <option value="Praktikum">Praktikum</option>
-            <option value="Werkstudent">Werkstudent</option>
-            <option value="N/A">N/A / Nicht spezifiziert</option>
+            <option value="Vollzeit" className="bg-slate-950 text-white font-semibold">Vollzeit</option>
+            <option value="Teilzeit" className="bg-slate-950 text-white font-semibold">Teilzeit</option>
+            <option value="Freie Mitarbeit" className="bg-slate-950 text-white font-semibold">Freie Mitarbeit</option>
+            <option value="Praktikum" className="bg-slate-950 text-white font-semibold">Praktikum</option>
+            <option value="Werkstudent" className="bg-slate-950 text-white font-semibold">Werkstudent</option>
+            <option value="N/A" className="bg-slate-950 text-white font-semibold">N/A / Nicht spezifiziert</option>
           </select>
         </div>
 
         {/* Date Posted */}
         <div className="space-y-1.5">
-          <label htmlFor="datePosted" className="text-xs font-bold text-slate-300">
+          <label htmlFor="datePosted" className="text-xs font-semibold text-slate-100 block">
             Veröffentlichungsdatum
           </label>
           <select
             id="datePosted"
             value={datePosted}
             onChange={(e) => setDatePosted(e.target.value)}
-            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 cursor-pointer"
           >
-            <option value="anytime">Beliebig</option>
-            <option value="24h">Letzte 24 Stunden</option>
-            <option value="3days">Letzte 3 Tage</option>
-            <option value="week">Letzte Woche</option>
-            <option value="month">Letzter Monat</option>
+            <option value="anytime" className="bg-slate-950 text-white font-semibold">Beliebig</option>
+            <option value="24h" className="bg-slate-950 text-white font-semibold">Letzte 24 Stunden</option>
+            <option value="3days" className="bg-slate-950 text-white font-semibold">Letzte 3 Tage</option>
+            <option value="week" className="bg-slate-950 text-white font-semibold">Letzte Woche</option>
+            <option value="month" className="bg-slate-950 text-white font-semibold">Letzter Monat</option>
           </select>
         </div>
 
         {/* Keywords */}
         <div className="space-y-1.5 md:col-span-2">
-          <label htmlFor="keywords" className="text-xs font-bold text-slate-300">
+          <label htmlFor="keywords" className="text-xs font-semibold text-slate-100 block">
             Keywords / Skills (Kommagetrennt)
           </label>
           <input
@@ -135,7 +135,7 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
             value={keywordsInput}
             onChange={(e) => setKeywordsInput(e.target.value)}
             placeholder="z.B. React, TypeScript, Python"
-            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
           />
         </div>
       </div>

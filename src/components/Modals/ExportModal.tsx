@@ -39,17 +39,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <h3 className="text-base font-bold text-slate-100 m-0">
                   CSV-Datei exportieren
                 </h3>
-                <p className="text-sm text-slate-300 m-0 leading-relaxed">
+                <p className="text-sm text-slate-100 m-0 leading-relaxed">
                   Wählen Sie aus, welche Tabelle Sie genau exportieren möchten:
                 </p>
                 <div className="pt-2">
                   <select
                     value={exportFileSelected}
                     onChange={(e) => setExportFileSelected(e.target.value)}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-slate-200 cursor-pointer focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-white font-semibold cursor-pointer focus:outline-none focus:border-blue-500"
                   >
                     {availableTables.map((tbl) => (
-                      <option key={tbl} value={tbl}>
+                      <option key={tbl} value={tbl} className="bg-slate-950 text-white font-semibold">
                         {formatTableName(tbl)}
                       </option>
                     ))}

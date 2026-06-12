@@ -99,7 +99,7 @@ export const JobTable: React.FC<JobTableProps> = ({
                 type="checkbox"
                 checked={allSelected}
                 onChange={() => handleToggleSelectAll(filteredAndSortedApplications)}
-                className="rounded border-[#E2E8F0] dark:border-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
+                className="rounded border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-950 text-blue-600 focus:ring-blue-500/20 focus:ring-offset-slate-900 cursor-pointer h-4.5 w-4.5 transition-all focus:outline-none"
               />
             </th>
             <th
@@ -190,7 +190,7 @@ export const JobTable: React.FC<JobTableProps> = ({
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => handleToggleRowSelect(app.id)}
-                    className="rounded border-[#E2E8F0] dark:border-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
+                    className="rounded border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-950 text-blue-600 focus:ring-blue-500/20 focus:ring-offset-slate-900 cursor-pointer h-4.5 w-4.5 transition-all focus:outline-none"
                   />
                 </td>
 
@@ -234,7 +234,7 @@ export const JobTable: React.FC<JobTableProps> = ({
                 {/* Role / Job Title */}
                 <td
                   style={{ width: columnWidths.role }}
-                  className="p-3.5 font-medium text-[#64748B] dark:text-slate-350 cursor-default truncate overflow-hidden whitespace-nowrap"
+                  className="p-3.5 font-medium text-[#64748B] dark:text-slate-100 cursor-default truncate overflow-hidden whitespace-nowrap"
                   onDoubleClick={() =>
                     startEditing(app.id, "role", draftChanges[app.id]?.role ?? app.role)
                   }
@@ -263,7 +263,7 @@ export const JobTable: React.FC<JobTableProps> = ({
                       <RefreshCw className="h-3 w-3 animate-spin text-slate-400" /> Speichere...
                     </div>
                   ) : (
-                    <div className="relative inline-block w-full text-[#1E293B] dark:text-slate-200">
+                    <div className="relative inline-block w-full text-[#1E293B] dark:text-white">
                       <select
                         id={`status-select-${app.id}`}
                         value={draftChanges[app.id]?.status ?? app.status ?? "Applied"}
@@ -273,16 +273,16 @@ export const JobTable: React.FC<JobTableProps> = ({
                             e.target.value as JobApplication["status"]
                           )
                         }
-                        className={`w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs font-semibold focus:outline-none cursor-pointer text-slate-800 dark:text-slate-200 ${getStatusColorClass(
+                        className={`w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs font-bold focus:outline-none cursor-pointer text-slate-800 dark:text-white ${getStatusColorClass(
                           draftChanges[app.id]?.status ?? app.status
                         )}`}
                       >
-                        <option value="Applied">Applied</option>
-                        <option value="Interview">Interview</option>
-                        <option value="Offer">Offer</option>
-                        <option value="Rejected">Rejected</option>
-                        <option value="Received">Received</option>
-                        <option value="Unknown">Unknown</option>
+                        <option value="Applied" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Applied</option>
+                        <option value="Interview" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Interview</option>
+                        <option value="Offer" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Offer</option>
+                        <option value="Rejected" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Rejected</option>
+                        <option value="Received" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Received</option>
+                        <option value="Unknown" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Unknown</option>
                       </select>
                     </div>
                   )}
@@ -291,7 +291,7 @@ export const JobTable: React.FC<JobTableProps> = ({
                 {/* Date */}
                 <td
                   style={{ width: columnWidths.date }}
-                  className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
+                  className="p-3.5 text-[#64748B] dark:text-slate-100 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
                   onDoubleClick={() =>
                     startEditing(app.id, "date", draftChanges[app.id]?.date ?? app.date ?? "")
                   }
@@ -316,7 +316,7 @@ export const JobTable: React.FC<JobTableProps> = ({
                 {/* Location */}
                 <td
                   style={{ width: columnWidths.location }}
-                  className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
+                  className="p-3.5 text-[#64748B] dark:text-slate-100 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
                   onDoubleClick={() =>
                     startEditing(
                       app.id,
@@ -345,7 +345,7 @@ export const JobTable: React.FC<JobTableProps> = ({
                 {/* Employment Type */}
                 <td
                   style={{ width: columnWidths.anstellungsart }}
-                  className="p-3.5 text-[#64748B] dark:text-slate-350 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
+                  className="p-3.5 text-[#64748B] dark:text-slate-100 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
                   onDoubleClick={() =>
                     startEditing(
                       app.id,
