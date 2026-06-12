@@ -12,6 +12,14 @@ load_dotenv()
 from backend.database import Base, engine
 from backend.models.job_application import JobApplicationModel
 from backend.models.saved_search import SavedSearchModel
+
+# Prevent job_applications table from being created automatically on startup
+if hasattr(JobApplicationModel, "__table__"):
+    try:
+        Base.metadata.remove(JobApplicationModel.__table__)
+    except Exception:
+        pass
+
 Base.metadata.create_all(bind=engine)
 
 # Dynamically run schema migration to add source_file and interview_date columns if they don't exist
