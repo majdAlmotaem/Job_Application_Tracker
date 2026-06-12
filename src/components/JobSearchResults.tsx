@@ -95,9 +95,16 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
                 <div className="space-y-4">
                   <div className="flex justify-between items-start gap-4">
                     <div className="space-y-1">
-                      <span className="inline-block text-[10px] font-bold tracking-wider uppercase text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/15">
-                        {job.company}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-block text-[10px] font-bold tracking-wider uppercase text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/15">
+                          {job.company}
+                        </span>
+                        {state === "saved" && (
+                          <span className="inline-block text-[10px] font-bold tracking-wider uppercase text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/15 animate-fadeIn">
+                            Beworben
+                          </span>
+                        )}
+                      </div>
                       <h3 className="text-base font-bold text-slate-100 leading-snug">
                         {job.job_title}
                       </h3>
@@ -199,13 +206,12 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
                           <Check className="w-3.5 h-3.5 text-emerald-400" />
                         </div>
                         <span>
-                          Erfolgreich in{" "}
+                          Beworben! Eingetragen in{" "}
                           <span className="underline decoration-emerald-500/30">
                             {savedTableNames[job.url] === "job_applications"
                               ? "Standardliste (job_applications)"
                               : savedTableNames[job.url]}
-                          </span>{" "}
-                          gespeichert
+                          </span>
                         </span>
                       </div>
                     )}

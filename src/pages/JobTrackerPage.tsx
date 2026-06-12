@@ -12,7 +12,6 @@ import { JobTable } from "../components/JobTable";
 import { StatsDashboard } from "../components/StatsDashboard";
 
 // Custom Hooks
-import { useJobApplications } from "../hooks/useJobApplications";
 import { useGmailSync } from "../hooks/useGmailSync";
 import { useInterviewReminders } from "../hooks/useInterviewReminders";
 
@@ -57,6 +56,30 @@ interface JobTrackerPageProps {
   onRequestNewTab: () => void;
   dailyGoal: number;
   setDailyGoal: (goal: number) => void;
+  applications: JobApplication[];
+  isFetchingApps: boolean;
+  draftChanges: Record<string, Partial<JobApplication>>;
+  isSavingDrafts: boolean;
+  selectedRowIds: Set<string>;
+  isSavingManual: boolean;
+  loadApplications: (tableName?: string) => Promise<void>;
+  handleUpdateStatusDraft: (id: string, newStatus: JobApplication["status"]) => void;
+  updateDraftField: (id: string, field: string, value: any) => void;
+  handleSaveDraftChanges: () => Promise<void>;
+  handleDiscardDraftChanges: () => void;
+  handleToggleRowSelect: (id: string) => void;
+  handleToggleSelectAll: (filteredApps: JobApplication[]) => void;
+  handleBulkDelete: () => void;
+  addManualApplication: (app: {
+    company: string;
+    role: string;
+    status: JobApplication["status"];
+    date: string;
+    location: string;
+    anstellungsart: string;
+  }) => Promise<boolean>;
+  setApplications: React.Dispatch<React.SetStateAction<JobApplication[]>>;
+  promotePendingTab: () => void;
 }
 
 export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
@@ -74,6 +97,23 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
   onRequestNewTab,
   dailyGoal,
   setDailyGoal,
+  applications,
+  isFetchingApps,
+  draftChanges,
+  isSavingDrafts,
+  selectedRowIds,
+  isSavingManual,
+  loadApplications,
+  handleUpdateStatusDraft,
+  updateDraftField,
+  handleSaveDraftChanges,
+  handleDiscardDraftChanges,
+  handleToggleRowSelect,
+  handleToggleSelectAll,
+  handleBulkDelete,
+  addManualApplication,
+  setApplications,
+  promotePendingTab,
 }) => {
   const isPendingTab = pendingTabs.some((pt) => pt.key === selectedTable);
   const pendingTabLabel = pendingTabs.find((pt) => pt.key === selectedTable)?.label ?? selectedTable;
@@ -122,38 +162,7 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
     anstellungsart: 150,
   });
 
-  const promotePendingTab = () => {
-    if (isPendingTab) {
-      setPendingTabs((prev) => prev.filter((pt) => pt.key !== selectedTable));
-    }
-  };
 
-  // Custom Hooks integration
-  const {
-    applications,
-    isFetchingApps,
-    draftChanges,
-    isSavingDrafts,
-    selectedRowIds,
-    isSavingManual,
-    loadApplications,
-    handleUpdateStatusDraft,
-    updateDraftField,
-    handleSaveDraftChanges,
-    handleDiscardDraftChanges,
-    handleToggleRowSelect,
-    handleToggleSelectAll,
-    handleBulkDelete,
-    addManualApplication,
-    setApplications,
-  } = useJobApplications({
-    selectedTable,
-    isPendingTab,
-    triggerToast,
-    triggerConfirm,
-    loadTables,
-    promotePendingTab,
-  });
 
   const {
     isScanning,

@@ -10,6 +10,8 @@ import { JobTrackerPage } from "./pages/JobTrackerPage";
 import { JobSearchPage } from "./pages/JobSearchPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { useSavedSearches } from "./hooks/useSavedSearches";
+import { useJobApplications } from "./hooks/useJobApplications";
+import { JobApplication } from "./types";
 
 
 export default function App() {
@@ -44,12 +46,19 @@ export default function App() {
       const response = await fetch("/api/applications/tables");
       if (!response.ok) throw new Error("Failed to load tables");
       const tables: string[] = await response.json();
-      // Always keep job_applications first; it can never be absent
-      const withDefault = ["job_applications", ...tables.filter((t) => t !== "job_applications")];
-      setAvailableTables(withDefault);
+      if (tables && tables.length > 0) {
+        setAvailableTables(tables);
+        setSelectedTable((prev) => {
+          if (prev && tables.includes(prev)) return prev;
+          return tables[0];
+        });
+      } else {
+        setAvailableTables(["job_applications"]);
+        setSelectedTable((prev) => (prev ? prev : "job_applications"));
+      }
     } catch (err) {
       console.error("Error loading tables:", err);
-      setAvailableTables((prev) => (prev.includes("job_applications") ? prev : ["job_applications", ...prev]));
+      setAvailableTables((prev) => (prev.length > 0 ? prev : ["job_applications"]));
     }
   };
 
@@ -138,11 +147,6 @@ export default function App() {
     renameTab,
   } = useSavedSearches(triggerToast);
 
-  // Initialize tabs from database
-  useEffect(() => {
-    loadTabs();
-  }, []);
-
   const triggerConfirm = (options: {
     title: string;
     message: string;
@@ -164,6 +168,45 @@ export default function App() {
       },
     });
   };
+
+  const isPendingTab = pendingTabs.some((pt) => pt.key === selectedTable);
+  const promotePendingTab = () => {
+    if (isPendingTab) {
+      setPendingTabs((prev) => prev.filter((pt) => pt.key !== selectedTable));
+    }
+  };
+
+  const {
+    applications,
+    isFetchingApps,
+    draftChanges,
+    isSavingDrafts,
+    selectedRowIds,
+    isSavingManual,
+    loadApplications,
+    handleUpdateStatusDraft,
+    updateDraftField,
+    handleSaveDraftChanges,
+    handleDiscardDraftChanges,
+    handleToggleRowSelect,
+    handleToggleSelectAll,
+    handleBulkDelete,
+    addManualApplication,
+    setApplications,
+  } = useJobApplications({
+    selectedTable,
+    isPendingTab,
+    triggerToast,
+    triggerConfirm,
+    loadTables,
+    promotePendingTab,
+  });
+
+  // Initialize tabs from database
+  useEffect(() => {
+    loadTabs();
+  }, []);
+
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
@@ -256,6 +299,23 @@ export default function App() {
                   onRequestNewTab={handleNewTab}
                   dailyGoal={dailyGoal}
                   setDailyGoal={setDailyGoal}
+                  applications={applications}
+                  isFetchingApps={isFetchingApps}
+                  draftChanges={draftChanges}
+                  isSavingDrafts={isSavingDrafts}
+                  selectedRowIds={selectedRowIds}
+                  isSavingManual={isSavingManual}
+                  loadApplications={loadApplications}
+                  handleUpdateStatusDraft={handleUpdateStatusDraft}
+                  updateDraftField={updateDraftField}
+                  handleSaveDraftChanges={handleSaveDraftChanges}
+                  handleDiscardDraftChanges={handleDiscardDraftChanges}
+                  handleToggleRowSelect={handleToggleRowSelect}
+                  handleToggleSelectAll={handleToggleSelectAll}
+                  handleBulkDelete={handleBulkDelete}
+                  addManualApplication={addManualApplication}
+                  setApplications={setApplications}
+                  promotePendingTab={promotePendingTab}
                 />
               }
             />

@@ -17,8 +17,9 @@ export const SaveJobModal: React.FC<SaveJobModalProps> = ({
   const [selectedTable, setSelectedTable] = useState<string>("");
 
   useEffect(() => {
-    if (isOpen && availableTables && availableTables.length > 0) {
-      setSelectedTable(availableTables[0]);
+    const filtered = availableTables.filter((t) => t !== "job_applications");
+    if (isOpen && filtered.length > 0) {
+      setSelectedTable(filtered[0]);
     }
   }, [isOpen, availableTables]);
 
@@ -27,6 +28,8 @@ export const SaveJobModal: React.FC<SaveJobModalProps> = ({
       onConfirm(selectedTable);
     }
   };
+
+  const tablesToRender = availableTables.filter((t) => t !== "job_applications");
 
   return (
     <AnimatePresence>
@@ -49,9 +52,9 @@ export const SaveJobModal: React.FC<SaveJobModalProps> = ({
               onChange={(e) => setSelectedTable(e.target.value)}
               className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
             >
-              {availableTables.map((table) => (
+              {tablesToRender.map((table) => (
                 <option key={table} value={table} className="bg-slate-950 text-slate-100">
-                  {table === "job_applications" ? "Standardliste (job_applications)" : table}
+                  {table}
                 </option>
               ))}
             </select>
