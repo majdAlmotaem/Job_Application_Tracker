@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sparkles, AlertCircle, CheckCircle2, FileText, Settings } from "lucide-react";
 import { CVAutoFiller } from "../components/CVAutoFiller";
 import { JobSearchForm } from "../components/JobSearchForm";
+import { useJobSearch } from "../hooks/useJobSearch";
+import { JobSearchResults } from "../components/JobSearchResults";
 
 interface CVExtractionResult {
   job_title: string;
@@ -23,6 +25,17 @@ export const JobSearchPage: React.FC = () => {
   });
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const { searchResults, isSearching, searchError, executeJobSearch } = useJobSearch();
+
+  useEffect(() => {
+    if (searchError) {
+      setMessage({
+        type: "error",
+        text: searchError,
+      });
+    }
+  }, [searchError]);
 
   const handleExtractionSuccess = (data: CVExtractionResult) => {
     setFormValues(data);
@@ -48,8 +61,9 @@ export const JobSearchPage: React.FC = () => {
 
     setMessage({
       type: "success",
-      text: `Jobsuche für "${values.job_title}" in "${values.location || "beliebiger Ort"}" (${dateLabel}) gestartet (Live-Suche wird in der nächsten Iteration implementiert).`,
+      text: `Jobsuche für "${values.job_title}" in "${values.location || "beliebiger Ort"}" (${dateLabel}) gestartet.`,
     });
+    executeJobSearch(values);
   };
 
   return (
@@ -144,6 +158,8 @@ export const JobSearchPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <JobSearchResults results={searchResults} isSearching={isSearching} />
     </div>
   );
 };

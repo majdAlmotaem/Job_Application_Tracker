@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
-async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, delay_ms: int = 2000) -> Dict[str, Any]:
+async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, delay_ms: int = 2000, model: str = "gemini-2.5-flash") -> Dict[str, Any]:
     """
     Executes a Gemini API request with exponential backoff for rate limits (429) or server errors (503).
     """
@@ -17,7 +17,7 @@ async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, dela
     if not api_key:
         raise ValueError("Missing GEMINI_API_KEY environment variable")
 
-    url = f"{GEMINI_API_URL}?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     
     async with httpx.AsyncClient(timeout=60.0) as client:
         for i in range(retries):
@@ -307,4 +307,63 @@ async def extract_cv_info(cv_text: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to parse response text from Gemini in extract_cv_info: {e}")
         raise e
+
+
+async def search_live_jobs(criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Performs a live web search for job postings matching the criteria using Gemini 3.5 Flash and Google Search tool.
+    Returns a list of matching job results.
+    """
+    logger.info(f"Starting live job search with criteria: {criteria}")
+    
+    prompt = f"Führe eine Websuche nach aktuellen, echten Stellenanzeigen durch, die zu diesen Kriterien passen: {criteria}. Gib exakt maximal 10 hochrelevante Ergebnisse zurück. Die URL muss ein echter Link zur Anzeige oder zum Unternehmen sein. Begründe in 'match_reason' in einem kurzen Satz auf Deutsch, warum der Job passt."
+    
+    schema = {
+        "type": "ARRAY",
+        "items": {
+            "type": "OBJECT",
+            "properties": {
+                "company": {"type": "STRING"},
+                "job_title": {"type": "STRING"},
+                "location": {"type": "STRING"},
+                "url": {"type": "STRING"},
+                "match_reason": {"type": "STRING"}
+            },
+            "required": ["company", "job_title", "location", "url", "match_reason"]
+        }
+    }
+    
+    payload = {
+        "contents": {
+            "parts": [
+                {"text": prompt}
+            ]
+        },
+        "tools": [{"googleSearch": {}}],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseSchema": schema
+        }
+    }
+    
+    try:
+        response_json = await call_gemini_with_retry(payload, model="gemini-3.5-flash")
+        candidates = response_json.get("candidates", [])
+        if not candidates:
+            raise ValueError("No candidates found in Gemini response")
+            
+        text = candidates[0].get("content", {}).get("parts", [])[0].get("text", "")
+        if not text:
+            raise ValueError("Empty text returned from Gemini")
+
+        results = json.loads(text.strip())
+        if not isinstance(results, list):
+            logger.warning(f"Expected a list of results, but got: {results}")
+            return []
+            
+        return results
+    except Exception as e:
+        logger.error(f"Error in search_live_jobs calling Gemini: {e}", exc_info=True)
+        raise e
+
 
