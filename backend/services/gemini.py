@@ -356,7 +356,9 @@ async def search_live_jobs(criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
         if not text:
             raise ValueError("Empty text returned from Gemini")
 
+        logger.info(f"Raw response text from Gemini: {text}")
         results = json.loads(text.strip())
+        logger.info(f"Gemini search results payload decoded: {results}")
         if not isinstance(results, list):
             logger.warning(f"Expected a list of results, but got: {results}")
             return []
