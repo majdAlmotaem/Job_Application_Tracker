@@ -330,14 +330,14 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
       </div>
 
       {/* Choice Layout Container */}
-      <div className="bg-slate-900/30 border border-slate-800 rounded-2xl p-6 lg:p-8 shadow-xl space-y-6">
+      <div className="professional-card p-6 lg:p-8 space-y-6 shadow-xl">
         <button
           onClick={() => setIsFormCollapsed(!isFormCollapsed)}
           className="w-full flex items-center justify-between text-left focus:outline-none bg-transparent border-none p-0 cursor-pointer"
         >
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 shrink-0">
-              <Sparkles className="w-4 h-4 text-blue-400" />
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-405 shrink-0">
+              <Sparkles className="w-4.5 h-4.5 text-blue-400" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider m-0">Suchkriterien & Lebenslauf-Upload</h3>
@@ -348,19 +348,19 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
         </button>
 
         {!isFormCollapsed && (
-          <div className="space-y-6 pt-4 border-t border-slate-800/60 animate-fadeIn">
-            {/* Option A: CV Upload */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between bg-slate-900/10 p-4 border border-slate-800/40 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="h-7 w-7 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 shrink-0">
-                  <FileText className="w-4 h-4" />
+          <div className="space-y-6 pt-4 border-t border-white/5 animate-fadeIn">
+            {/* Option A: CV Upload (Subtle Blue AI Panel) */}
+            <div className="bg-blue-950/10 border border-blue-500/15 p-5 rounded-2xl transition-all duration-300 hover:border-blue-500/35 hover:bg-blue-950/15 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="h-9 w-9 bg-blue-500/10 border border-blue-500/25 rounded-xl flex items-center justify-center text-blue-400 shrink-0">
+                  <FileText className="w-4.5 h-4.5" />
                 </div>
                 <div className="space-y-0.5">
-                  <h3 className="text-xs font-bold text-slate-100 uppercase tracking-wider">
-                    Option A: Lebenslauf-Upload
+                  <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider">
+                    Option A: Lebenslauf-Upload (KI)
                   </h3>
-                  <p className="text-slate-200 text-[11px] leading-tight">
-                    Lade deinen Lebenslauf hoch, um die Suchkriterien unten automatisch auszufüllen.
+                  <p className="text-slate-350 text-[11px] leading-tight">
+                    Lade deinen Lebenslauf hoch, um alle Kriterien automatisch zu extrahieren.
                   </p>
                 </div>
               </div>
@@ -374,17 +374,22 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
             </div>
 
             {/* Divider */}
-            <div className="h-[1px] w-full bg-slate-800/80" />
+            <div className="h-[1px] w-full bg-white/5" />
 
-            {/* Option B: Manual input */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-2">
-                <div className="h-7 w-7 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center text-blue-400">
-                  <Settings className="w-4 h-4" />
+            {/* Option B: Manual input Panel (Subtle Slate Panel) */}
+            <div className="bg-slate-950/35 border border-white/5 p-5 rounded-2xl space-y-6 transition-all duration-300 hover:border-slate-800/80">
+              <div className="flex items-center gap-3.5">
+                <div className="h-9 w-9 bg-slate-800 border border-slate-700/60 rounded-xl flex items-center justify-center text-slate-400 shrink-0">
+                  <Settings className="w-4.5 h-4.5" />
                 </div>
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  Option B: Suchkriterien befüllen
-                </h3>
+                <div className="space-y-0.5">
+                  <h3 className="text-xs font-bold text-slate-250 uppercase tracking-wider">
+                    Option B: Kriterien manuell bearbeiten
+                  </h3>
+                  <p className="text-slate-400 text-[11px] leading-tight">
+                    Passe deine Berufsbezeichnung, deinen Wunschort und andere Filter an.
+                  </p>
+                </div>
               </div>
               <JobSearchForm
                 initialValues={formValues}

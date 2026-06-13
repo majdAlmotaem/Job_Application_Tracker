@@ -212,15 +212,29 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                           Beworben!
                         </span>
-                        <button
-                          onClick={() => {
-                            setSelectedJobForSave(job);
-                            setIsModalOpen(true);
-                          }}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-1.5 rounded-lg text-xs transition cursor-pointer border-none flex items-center gap-1.5"
-                        >
-                          In Liste eintragen
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedJobForSave(job);
+                              setIsModalOpen(true);
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-1.5 rounded-lg text-xs transition cursor-pointer border-none flex items-center gap-1.5"
+                          >
+                            In Liste eintragen
+                          </button>
+                          <button
+                            onClick={() => {
+                              setInteractionState((prev) => ({
+                                ...prev,
+                                [job.url]: "saved",
+                              }));
+                              onJobSaved(job.url);
+                            }}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold px-4 py-1.5 rounded-lg text-xs transition cursor-pointer border-none"
+                          >
+                            Schon eingetragen
+                          </button>
+                        </div>
                       </div>
                     )}
 
