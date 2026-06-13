@@ -49,14 +49,29 @@ async def analyze_emails_endpoint(payload: EmailAnalysisRequest):
         logger.info(f"Successfully analyzed {num_emails} emails. Found {num_job_related} job-related emails.")
         
         for idx, r in enumerate(results):
+            email_id = r.get('emailId')
+            # Find matching original email
+            orig = next((e for e in emails_dict if e.get('id') == email_id), {})
+            subject = orig.get('subject', 'N/A')
+            snippet = orig.get('snippet', 'N/A')
+            
+            # Clean snippet for single line log representation
+            snippet_clean = snippet.replace('\n', ' ').replace('\r', ' ').strip()
+            if len(snippet_clean) > 100:
+                snippet_clean = snippet_clean[:100] + "..."
+                
             if r.get('isJobRelated'):
                 logger.info(
-                    f"   - [Job-Related] Email #{idx + 1} ({r.get('emailId')}): "
-                    f"Company='{r.get('company')}', Role='{r.get('role')}', "
-                    f"Status='{r.get('status')}', Classification='{r.get('classification')}'"
+                    f"   - Email #{idx + 1} ({email_id}):\n"
+                    f"     Original -> Subject: '{subject}' | Snippet: '{snippet_clean}'\n"
+                    f"     Analyzed -> [Job-Related] Company='{r.get('company')}', Role='{r.get('role')}', Status='{r.get('status')}', Classification='{r.get('classification')}'"
                 )
             else:
-                logger.debug(f"   - [Not Related] Email #{idx + 1} ({r.get('emailId')}) is spam/generic.")
+                logger.info(
+                    f"   - Email #{idx + 1} ({email_id}):\n"
+                    f"     Original -> Subject: '{subject}' | Snippet: '{snippet_clean}'\n"
+                    f"     Analyzed -> [Not Related] spam/generic"
+                )
                 
         return {"results": results}
     except Exception as e:

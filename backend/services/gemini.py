@@ -7,9 +7,9 @@ from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
 
-async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, delay_ms: int = 2000, model: str = "gemini-2.5-flash") -> Dict[str, Any]:
+async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, delay_ms: int = 2000, model: str = "gemini-3.5-flash") -> Dict[str, Any]:
     """
     Executes a Gemini API request with exponential backoff for rate limits (429) or server errors (503).
     """
@@ -316,7 +316,7 @@ async def search_live_jobs(criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     logger.info(f"Starting live job search with criteria: {criteria}")
     
-    prompt = f"Führe eine Websuche nach aktuellen, echten Stellenanzeigen durch, die zu diesen Kriterien passen: {criteria}. Gib exakt maximal 10 hochrelevante Ergebnisse zurück. Die URL muss ein echter Link zur Anzeige oder zum Unternehmen sein. Begründe in 'match_reason' in einem kurzen Satz auf Deutsch, warum der Job passt."
+    prompt = f"Führe eine Websuche nach aktuellen, echten Stellenanzeigen durch, die zu diesen Kriterien passen: {criteria}. Gib exakt maximal 10 hochrelevante Ergebnisse zurück. Die URL muss ein echter Link zur Stelleanzeige sein. Begründe in 'match_reason' in einem kurzen Satz auf Deutsch, warum der Job passt und die passung rate von 1-10"
     
     schema = {
         "type": "ARRAY",

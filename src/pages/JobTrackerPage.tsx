@@ -553,32 +553,6 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
         }}
       />
 
-      {/* Loading Progress Bar for Gmail Sync */}
-      {isScanning && (
-        <div className="relative overflow-hidden rounded-xl border border-blue-500/20 bg-slate-900/40 p-4 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-              <RefreshCw className="h-5 w-5 animate-spin" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-100">{syncPhase}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">{syncDetails}</p>
-            </div>
-          </div>
-          <div className="w-full md:max-w-xs space-y-1.5 shrink-0">
-            <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold px-0.5">
-              <span>Fortschritt</span>
-              <span className="text-blue-400 font-bold">{Math.round(syncProgress)}%</span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5 relative">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(59,130,246,0.4)]"
-                style={{ width: `${syncProgress}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Stats Dashboard (Daily Goal + Overall Metrics) */}
       <StatsDashboard
@@ -613,6 +587,33 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
         handleRejectAll={handleRejectAll}
         getCompanyMatch={getCompanyMatch}
       />
+
+      {/* Loading Progress Bar for Gmail Sync */}
+      {isScanning && (
+        <div className="relative overflow-hidden rounded-xl border border-blue-500/20 bg-slate-900/40 p-4 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+              <RefreshCw className="h-5 w-5 animate-spin" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-100">{syncPhase}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{syncDetails}</p>
+            </div>
+          </div>
+          <div className="w-full md:max-w-xs space-y-1.5 shrink-0">
+            <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold px-0.5">
+              <span>Fortschritt</span>
+              <span className="text-blue-400 font-bold">{Math.round(syncProgress)}%</span>
+            </div>
+            <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5 relative">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(59,130,246,0.4)]"
+                style={{ width: `${syncProgress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Grid table container */}
       <div id="grid-table-container" className="professional-card p-6">

@@ -29,11 +29,6 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
   const [keywordsInput, setKeywordsInput] = useState(initialValues.keywords.join(", "));
   const [datePosted, setDatePosted] = useState("anytime");
 
-  // Simulated search progress state
-  const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState("Suche wird gestartet...");
-  const [details, setDetails] = useState("Verbindung zum KI-Modell wird hergestellt");
-
   // Synchronize state when initialValues prop changes (e.g. after CV upload)
   useEffect(() => {
     setJobTitle(initialValues.job_title);
@@ -41,44 +36,6 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
     setEmploymentType(initialValues.employment_type);
     setKeywordsInput(initialValues.keywords.join(", "));
   }, [initialValues]);
-
-  // Handle simulated progress and messages
-  useEffect(() => {
-    if (isSearching) {
-      setProgress(5);
-      setPhase("Suchanfrage wird formatiert...");
-      setDetails("Kriterien werden analysiert");
-
-      const interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 95) {
-            clearInterval(interval);
-            return 95;
-          }
-          const next = prev + Math.floor(Math.random() * 8) + 2;
-
-          if (next > 75) {
-            setPhase("Stellenanzeigen werden extrahiert...");
-            setDetails("Die passendsten Angebote werden ausgewählt");
-          } else if (next > 50) {
-            setPhase("Live-Websuche läuft...");
-            setDetails("Google-Suchergebnisse werden analysiert");
-          } else if (next > 25) {
-            setPhase("Suchkriterien werden verarbeitet...");
-            setDetails("Gemini initiiert die Google-Suche");
-          }
-
-          return Math.min(next, 95);
-        });
-      }, 500);
-
-      return () => {
-        clearInterval(interval);
-      };
-    } else {
-      setProgress(0);
-    }
-  }, [isSearching]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,31 +163,6 @@ export const JobSearchForm: React.FC<JobSearchFormProps> = ({
           </button>
         </div>
 
-        {isSearching && (
-          <div className="relative overflow-hidden rounded-xl border border-blue-500/20 bg-slate-900/40 p-4 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4 animate-fadeIn w-full">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-                <RefreshCw className="h-5 w-5 animate-spin" />
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-bold text-slate-100">{phase}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">{details}</p>
-              </div>
-            </div>
-            <div className="w-full md:max-w-xs space-y-1.5 shrink-0">
-              <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold px-0.5">
-                <span>Fortschritt</span>
-                <span className="text-blue-400 font-bold">{Math.round(progress)}%</span>
-              </div>
-              <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5 relative">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(59,130,246,0.4)]"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </form>
   );
