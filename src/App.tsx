@@ -280,7 +280,18 @@ export default function App() {
 
         <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto h-full">
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            <Route
+              path="/"
+              element={
+                <LandingPage
+                  applications={applications}
+                  dailyGoal={dailyGoal}
+                  selectedTable={selectedTable}
+                  setApplications={setApplications}
+                  triggerToast={triggerToast}
+                />
+              }
+            />
             <Route
               path="/tracker"
               element={

@@ -10,6 +10,7 @@ import {
 import { JobApplication } from "../types";
 import { JobTable } from "../components/JobTable";
 import { StatsDashboard } from "../components/StatsDashboard";
+import { DailyGoalCard } from "../components/DailyGoalCard";
 
 // Custom Hooks
 import { useGmailSync } from "../hooks/useGmailSync";
@@ -554,13 +555,17 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
       />
 
 
-      {/* Stats Dashboard (Daily Goal + Overall Metrics) */}
-      <StatsDashboard
-        metrics={metrics}
-        addedToday={addedToday}
-        dailyGoal={dailyGoal}
-        setDailyGoal={setDailyGoal}
-      />
+      {/* Stats Dashboard (Daily Goal + Overall Metrics separated) */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <DailyGoalCard
+          addedToday={addedToday}
+          dailyGoal={dailyGoal}
+          setDailyGoal={setDailyGoal}
+        />
+        <div className="lg:col-span-4">
+          <StatsDashboard metrics={metrics} />
+        </div>
+      </div>
 
       {/* Active Interview Reminders */}
       <ActiveRemindersList

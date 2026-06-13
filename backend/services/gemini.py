@@ -316,7 +316,18 @@ async def search_live_jobs(criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     logger.info(f"Starting live job search with criteria: {criteria}")
     
-    prompt = f"Führe eine Websuche nach aktuellen, echten Stellenanzeigen durch, die zu diesen Kriterien passen: {criteria}. Gib exakt maximal 10 hochrelevante Ergebnisse zurück. Die URL muss ein echter Link zur Stelleanzeige sein. Begründe in 'match_reason' in einem kurzen Satz auf Deutsch, warum der Job passt und die passung rate von 1-10"
+    prompt = f"""
+    Du bist ein spezialisierter Recruiter. Führe eine präzise Live-Websuche nach aktuellen Stellenanzeigen durch, die exakt zu diesen Kriterien passen: {criteria}. 
+    
+    WICHTIGE SUCH-REGELN:
+    1. Durchsuche fokussiert Premium-Jobportale (z.B. site:linkedin.com/jobs, site:stepstone.de, site:de.indeed.com, site:xing.com) oder direkte Karriereseiten von Unternehmen.
+    2. Ignoriere generische Spam-Jobbörsen (Aggregatoren), die nur auf andere Portale weiterleiten.
+    3. Die URL MUSS ein direkter, funktionierender Link zur Original-Stellenanzeige sein.
+    
+    Gib exakt maximal 10 hochrelevante Ergebnisse zurück. 
+    Begründe in 'match_reason' in einem kurzen Satz auf Deutsch, warum der Job passt. 
+    Bewerte die Passgenauigkeit im Feld 'match_score' auf einer Skala von 1 bis 10.
+    """
     
     schema = {
         "type": "ARRAY",
@@ -327,9 +338,10 @@ async def search_live_jobs(criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "job_title": {"type": "STRING"},
                 "location": {"type": "STRING"},
                 "url": {"type": "STRING"},
-                "match_reason": {"type": "STRING"}
+                "match_reason": {"type": "STRING"},
+                "match_score": {"type": "INTEGER"} 
             },
-            "required": ["company", "job_title", "location", "url", "match_reason"]
+            "required": ["company", "job_title", "location", "url", "match_reason", "match_score"]
         }
     }
     

@@ -105,6 +105,23 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
         {results.map((job, idx) => {
           const state = interactionState[job.url] || (job.is_saved ? "saved" : undefined);
 
+          // Calculate Match Score circular progress properties
+          const matchScore = job.match_score || 0;
+          const percent = matchScore <= 10 ? matchScore * 10 : matchScore;
+          const radius = 15;
+          const circumference = 94.24; // 2 * PI * 15
+          const strokeDashoffset = circumference - (percent / 100) * circumference;
+
+          let strokeColor = "stroke-emerald-500";
+          let textColor = "text-emerald-400";
+          if (percent < 50) {
+            strokeColor = "stroke-rose-500";
+            textColor = "text-rose-400";
+          } else if (percent < 80) {
+            strokeColor = "stroke-amber-500";
+            textColor = "text-amber-400";
+          }
+
           return (
             <div
               key={idx}
@@ -117,16 +134,44 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
                 <div className="space-y-4">
                   <div className="flex justify-between items-start gap-4">
                     <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-block text-[10px] font-bold tracking-wider uppercase text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/15">
-                          {job.company}
-                        </span>
-                      </div>
                       <h3 className="text-base font-bold text-slate-100 leading-snug">
                         {job.job_title}
                       </h3>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      {job.match_score !== undefined && (
+                        <div className="flex items-center" title={`Passgenauigkeit: ${matchScore}/10`}>
+                          <div className="relative flex items-center justify-center h-9 w-9 shrink-0">
+                            <svg className="w-9 h-9 transform -rotate-90" viewBox="0 0 36 36">
+                              {/* Background circle */}
+                              <circle
+                                cx="18"
+                                cy="18"
+                                r={radius}
+                                className="stroke-slate-800"
+                                strokeWidth="3"
+                                fill="transparent"
+                              />
+                              {/* Foreground progress circle */}
+                              <circle
+                                cx="18"
+                                cy="18"
+                                r={radius}
+                                className={`${strokeColor} transition-all duration-500 ease-out`}
+                                strokeWidth="3"
+                                fill="transparent"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={strokeDashoffset}
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <span className={`absolute text-[9px] font-extrabold ${textColor}`}>
+                              {percent}%
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
                       {state === "saved" && (
                         <span className="inline-block text-[10px] font-bold tracking-wider uppercase text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/15 animate-fadeIn">
                           Beworben
