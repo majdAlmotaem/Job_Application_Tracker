@@ -5,7 +5,8 @@ import { Mail, RefreshCw, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { initAuth, googleSignIn } from "./services/googleAuth";
 import { Sidebar } from "./components/Sidebar";
-import { LandingPage } from "./pages/LandingPage";
+import { HomePage } from "./pages/HomePage";
+import { DashboardPage } from "./pages/DashboardPage";
 import { JobTrackerPage } from "./pages/JobTrackerPage";
 import { JobSearchPage } from "./pages/JobSearchPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -280,15 +281,17 @@ export default function App() {
 
         <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto h-full">
           <Routes>
+            <Route path="/" element={<HomePage />} />
             <Route
-              path="/"
+              path="/dashboard"
               element={
-                <LandingPage
+                <DashboardPage
                   applications={applications}
                   dailyGoal={dailyGoal}
                   selectedTable={selectedTable}
                   setApplications={setApplications}
                   triggerToast={triggerToast}
+                  savedTabs={savedTabs}
                 />
               }
             />

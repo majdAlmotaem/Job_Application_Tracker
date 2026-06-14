@@ -14,6 +14,7 @@ import {
   User as UserIcon,
   Plus,
   Clock,
+  Home,
 } from "lucide-react";
 import { SavedSearch } from "../hooks/useSavedSearches";
 
@@ -118,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* ── Navigation ── */}
         <nav className="space-y-1 text-sm font-medium flex-1">
 
-          {/* Übersicht */}
+          {/* Startseite */}
           <NavLink
             to="/"
             end
@@ -129,10 +130,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
               }`
             }
-            title={isSidebarCollapsed ? "Übersicht" : undefined}
+            title={isSidebarCollapsed ? "Startseite" : undefined}
+          >
+            <Home className="h-4 w-4 shrink-0" />
+            {!isSidebarCollapsed && <span>Startseite</span>}
+          </NavLink>
+
+          {/* Dashboard */}
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              `flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-lg transition ${
+                isActive
+                  ? "bg-blue-500/10 border border-blue-500/15 text-blue-400"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
+              }`
+            }
+            title={isSidebarCollapsed ? "Dashboard" : undefined}
           >
             <LayoutDashboard className="h-4 w-4 shrink-0" />
-            {!isSidebarCollapsed && <span>Übersicht</span>}
+            {!isSidebarCollapsed && <span>Dashboard</span>}
           </NavLink>
 
           {/* ── Bewerbungs-Tracker section ── */}

@@ -21,7 +21,7 @@ export const ActivityRings: React.FC<ActivityRingsProps> = ({
 
   // 1. Outer Ring: Daily Goal Progress
   const goalPercent = dailyGoal > 0 ? Math.min((addedToday / dailyGoal) * 100, 100) : 0;
-  
+
   // 2. Middle Ring: Interview reminders schedule rate
   const interviewPercent = totalInterviews > 0 ? Math.min((interviewsWithReminder / totalInterviews) * 100, 100) : 0;
 
@@ -78,7 +78,7 @@ export const ActivityRings: React.FC<ActivityRingsProps> = ({
   const handleMouseMove = (e: React.MouseEvent) => {
     let x = e.clientX + 15;
     let y = e.clientY + 15;
-    
+
     // Check right edge collision
     if (x + 180 > window.innerWidth) {
       x = e.clientX - 195;
@@ -87,12 +87,12 @@ export const ActivityRings: React.FC<ActivityRingsProps> = ({
     if (y + 90 > window.innerHeight) {
       y = e.clientY - 105;
     }
-    
+
     setTooltipPos({ x, y });
   };
 
   return (
-    <div className="py-6 flex flex-col items-center justify-center relative overflow-visible group w-full">
+    <div className="py-0 flex flex-col items-center justify-center relative overflow-visible group w-full">
       {/* Background radial glow */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -105,7 +105,7 @@ export const ActivityRings: React.FC<ActivityRingsProps> = ({
           {rings.map((ring) => {
             const isHovered = hoveredRing === ring.id;
             const strokeOffset = ring.circumference - (ring.percent / 100) * ring.circumference;
-            
+
             return (
               <g
                 key={ring.id}
@@ -122,7 +122,7 @@ export const ActivityRings: React.FC<ActivityRingsProps> = ({
                   strokeWidth={strokeWidth}
                   fill="transparent"
                 />
-                
+
                 {/* Foreground Animated Ring Progress */}
                 {ring.percent > 0 && (
                   <circle
@@ -148,6 +148,22 @@ export const ActivityRings: React.FC<ActivityRingsProps> = ({
             );
           })}
         </svg>
+      </div>
+
+      {/* Legend Block below the ring circle (horizontal layout) */}
+      <div className="mt-5 flex flex-row items-center justify-center gap-6 text-[10px] select-none pointer-events-none w-[240px] shrink-0">
+        <div className="flex items-center gap-1.5 text-rose-455 text-rose-400 font-bold uppercase tracking-wider text-[9px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0 animate-pulse" />
+          <span>Tagesziel</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-amber-455 text-amber-400 font-bold uppercase tracking-wider text-[9px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+          <span>Interviews</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-emerald-455 text-emerald-450 text-emerald-400 font-bold uppercase tracking-wider text-[9px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+          <span>Erfolge</span>
+        </div>
       </div>
 
       {/* Floating Mouse Tooltip (Displays detailed progress info next to cursor) */}
