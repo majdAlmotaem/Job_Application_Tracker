@@ -1,12 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Table, Search, User } from "lucide-react";
+import { Table, Search, User, FileText } from "lucide-react";
 import Lottie from "lottie-react";
 import catAnimation from "../assets/animations/Cat playing animation.json";
 
 export const HomePage: React.FC = () => {
   return (
-    <div className="space-y-8 max-w-4xl mx-auto py-6">
+    <div className="space-y-8 w-full">
       {/* Welcome Banner */}
       <header className="relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-r from-blue-900/20 via-slate-900/30 to-purple-950/15 p-8 lg:p-12 shadow-2xl">
         <div className="absolute right-0 top-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -23,7 +23,7 @@ export const HomePage: React.FC = () => {
       </header>
 
       {/* Navigation Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Card 1: Job Tracker */}
         <Link
           to="/tracker"
@@ -66,7 +66,28 @@ export const HomePage: React.FC = () => {
           </span>
         </Link>
 
-        {/* Card 3: Profile */}
+        {/* Card 3: CV-Maker */}
+        <Link
+          to="/cv-maker"
+          className="group professional-card p-6 hover:border-indigo-500/30 transition duration-300 flex flex-col justify-between hover:scale-[1.02]"
+        >
+          <div className="space-y-4">
+            <div className="h-10 w-10 bg-indigo-500/10 border border-indigo-500/15 rounded-xl flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition duration-300">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-100">CV-Maker (Lebenslauf)</h3>
+              <p className="text-slate-400 text-xs mt-2 leading-relaxed">
+                Erstellen Sie einen professionellen, DIN-A4-konformen Lebenslauf mit Echtzeit-Live-Vorschau und PDF-Export.
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block mt-6 group-hover:translate-x-1 transition duration-150">
+            Lebenslauf erstellen &rarr;
+          </span>
+        </Link>
+
+        {/* Card 4: Profile */}
         <Link
           to="/profile"
           className="group professional-card p-6 hover:border-emerald-500/30 transition duration-300 flex flex-col justify-between hover:scale-[1.02]"

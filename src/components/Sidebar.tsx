@@ -15,6 +15,7 @@ import {
   Plus,
   Clock,
   Home,
+  FileText,
 } from "lucide-react";
 import { SavedSearch } from "../hooks/useSavedSearches";
 
@@ -87,13 +88,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         isSidebarCollapsed ? "w-20" : "w-72"
       } bg-slate-900/30 backdrop-blur-xl border-r border-white/5`}
     >
-      <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 lg:px-6">
+      <div className={`flex flex-col flex-1 overflow-y-auto overflow-x-hidden py-6 ${isSidebarCollapsed ? "px-3" : "px-4 lg:px-6"}`}>
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-8 shrink-0">
+        <div className={`flex ${isSidebarCollapsed ? "flex-col items-center gap-4" : "items-center justify-between"} mb-8 shrink-0`}>
           <div
             onClick={() => { if (isSidebarCollapsed) setIsSidebarCollapsed(false); }}
-            className={`flex items-center gap-2.5 ${isSidebarCollapsed ? "cursor-pointer" : "cursor-default"}`}
+            className={`flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-2.5"} ${isSidebarCollapsed ? "cursor-pointer" : "cursor-default"}`}
             title={isSidebarCollapsed ? "Seitenleiste öffnen" : undefined}
           >
             <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black shadow-sm shrink-0">
@@ -155,11 +156,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* ── Bewerbungs-Tracker section ── */}
           <div className="space-y-0.5">
             {/* Row: NavLink text + collapse arrow */}
-            <div className="flex items-center gap-1">
+            <div className={isSidebarCollapsed ? "" : "flex items-center gap-1"}>
               <NavLink
                 to="/tracker"
                 className={({ isActive }) =>
-                  `flex-1 flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-lg transition ${
+                  `${isSidebarCollapsed ? "w-full" : "flex-1"} flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-lg transition ${
                     isActive
                       ? "bg-blue-500/10 border border-blue-500/15 text-blue-400"
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
@@ -244,26 +245,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
 
-            {/* Collapsed: show "+" icon for quick new tab */}
-            {isSidebarCollapsed && (
-              <button
-                onClick={handleNewTab}
-                className="w-full flex justify-center py-1.5 text-slate-500 hover:text-blue-400 transition cursor-pointer"
-                title="Neue Liste"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
-            )}
           </div>
 
           {/* ── Job-Suche Collapsible section ── */}
           <div className="space-y-0.5">
             {/* Row: NavLink + Collapse Chevron */}
-            <div className="flex items-center gap-1">
+            <div className={isSidebarCollapsed ? "" : "flex items-center gap-1"}>
               <NavLink
                 to="/search"
                 className={({ isActive }) =>
-                  `flex-1 flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-lg transition ${
+                  `${isSidebarCollapsed ? "w-full" : "flex-1"} flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-lg transition ${
                     isActive
                       ? "bg-blue-500/10 border border-blue-500/15 text-blue-400"
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
@@ -334,20 +325,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
 
-            {/* Collapsed: show "+" icon for quick new search tab */}
-            {isSidebarCollapsed && (
-              <button
-                onClick={() => {
-                  createNewTab();
-                  navigate("/search");
-                }}
-                className="w-full flex justify-center py-1.5 text-slate-500 hover:text-blue-400 transition cursor-pointer"
-                title="Neue Suche"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
-            )}
           </div>
+
+          {/* CV-Maker */}
+          <NavLink
+            to="/cv-maker"
+            className={({ isActive }) =>
+              `flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-lg transition ${
+                isActive
+                  ? "bg-blue-500/10 border border-blue-500/15 text-blue-400"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
+              }`
+            }
+            title={isSidebarCollapsed ? "CV-Maker" : undefined}
+          >
+            <FileText className="h-4 w-4 shrink-0" />
+            {!isSidebarCollapsed && <span>CV-Maker</span>}
+          </NavLink>
 
           {/* Profil */}
           <NavLink
