@@ -10,6 +10,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { JobTrackerPage } from "./pages/JobTrackerPage";
 import { JobSearchPage } from "./pages/JobSearchPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { CVMakerPage } from "./pages/CVMakerPage";
 import { useSavedSearches } from "./hooks/useSavedSearches";
 import { useJobApplications } from "./hooks/useJobApplications";
 import { JobApplication } from "./types";
@@ -355,6 +356,7 @@ export default function App() {
               }
             />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/cv-maker" element={<CVMakerPage />} />
           </Routes>
         </main>
 

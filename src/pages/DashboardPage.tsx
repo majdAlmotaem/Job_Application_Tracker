@@ -49,7 +49,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   });
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto py-6">
+    <div className="space-y-8 w-full">
       {/* Title Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

@@ -60,7 +60,7 @@ export const TrackerHeader: React.FC<TrackerHeaderProps> = ({
   return (
     <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/5">
       <div>
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white m-0">Bewerbungs-Tracker</h2>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white m-0">{formatTableName(selectedTable)}</h2>
         <p className="text-sm text-slate-400 mt-1 m-0">Synchronisieren Sie Ihr Postfach und verwalten Sie Ihre Bewerbungen.</p>
       </div>
 
