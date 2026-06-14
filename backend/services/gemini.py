@@ -19,7 +19,7 @@ async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, dela
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         for i in range(retries):
             try:
                 response = await client.post(url, json=payload)
