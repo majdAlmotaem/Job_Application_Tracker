@@ -622,97 +622,120 @@ export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
 
       {/* Grid table container */}
       <div id="grid-table-container" className="professional-card p-6">
-        <FilterSortBar
-          selectedRowIds={selectedRowIds}
-          handleBulkDelete={handleBulkDelete}
-          draftChanges={draftChanges}
-          handleDiscardDraftChanges={handleDiscardDraftChanges}
-          isSavingDrafts={isSavingDrafts}
-          handleSaveDraftChanges={handleSaveDraftChanges}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          filterStatus={filterStatus}
-          setFilterStatus={setFilterStatus}
-          sortType={sortType}
-          setSortType={setSortType}
-          showAddForm={showAddForm}
-          setShowAddForm={setShowAddForm}
-          onRefresh={() => loadApplications(selectedTable)}
-          isFetchingApps={isFetchingApps}
-          showHinweis={!isPendingTab && applications.length > 0}
-        />
-
-        {/* Pending tab empty state */}
-        {isPendingTab && applications.length === 0 && (
-          <div className="py-14 flex flex-col items-center justify-center text-center gap-4 border border-dashed border-amber-900/30 rounded-xl bg-amber-950/10">
-            <div className="h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-              <Plus className="h-6 w-6 text-amber-400" />
+        {!selectedTable ? (
+          <div className="py-14 flex flex-col items-center justify-center text-center gap-4 border border-dashed border-slate-700/30 rounded-xl bg-slate-900/10">
+            <div className="h-12 w-12 rounded-full bg-slate-800/50 flex items-center justify-center border border-slate-700/30">
+              <Plus className="h-6 w-6 text-slate-400" />
             </div>
             <div>
-              <p className="text-sm font-bold text-slate-200">{pendingTabLabel}</p>
+              <p className="text-sm font-bold text-slate-200">Keine aktive Liste</p>
               <p className="text-xs text-slate-400 mt-1">
-                Diese Liste ist noch leer. Füge Einträge hinzu oder importiere eine CSV-Datei.
+                Erstellen Sie eine neue Liste oder importieren Sie eine CSV-Datei, um mit dem Tracker zu beginnen.
               </p>
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setShowAddForm(true)}
-                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-200 font-semibold py-2 px-4 rounded-lg text-xs transition cursor-pointer"
+                type="button"
+                onClick={onRequestNewTab}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-750 text-white font-semibold py-2 px-4 rounded-lg text-xs transition cursor-pointer border-none"
               >
-                <Plus className="h-3.5 w-3.5" /> Eintrag hinzufügen
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg text-xs transition cursor-pointer"
-              >
-                <Upload className="h-3.5 w-3.5" /> CSV importieren
+                <Plus className="h-3.5 w-3.5" /> Neue Liste erstellen
               </button>
             </div>
           </div>
+        ) : (
+          <>
+            <FilterSortBar
+              selectedRowIds={selectedRowIds}
+              handleBulkDelete={handleBulkDelete}
+              draftChanges={draftChanges}
+              handleDiscardDraftChanges={handleDiscardDraftChanges}
+              isSavingDrafts={isSavingDrafts}
+              handleSaveDraftChanges={handleSaveDraftChanges}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              filterStatus={filterStatus}
+              setFilterStatus={setFilterStatus}
+              sortType={sortType}
+              setSortType={setSortType}
+              showAddForm={showAddForm}
+              setShowAddForm={setShowAddForm}
+              onRefresh={() => loadApplications(selectedTable)}
+              isFetchingApps={isFetchingApps}
+              showHinweis={!isPendingTab && applications.length > 0}
+            />
+
+            {/* Pending tab empty state */}
+            {isPendingTab && applications.length === 0 && (
+              <div className="py-14 flex flex-col items-center justify-center text-center gap-4 border border-dashed border-amber-900/30 rounded-xl bg-amber-950/10">
+                <div className="h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+                  <Plus className="h-6 w-6 text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-200">{pendingTabLabel}</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Diese Liste ist noch leer. Füge Einträge hinzu oder importiere eine CSV-Datei.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowAddForm(true)}
+                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-200 font-semibold py-2 px-4 rounded-lg text-xs transition cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Eintrag hinzufügen
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg text-xs transition cursor-pointer"
+                  >
+                    <Upload className="h-3.5 w-3.5" /> CSV importieren
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <ManualAddForm
+              showAddForm={showAddForm}
+              setShowAddForm={setShowAddForm}
+              manualCompany={manualCompany}
+              setManualCompany={setManualCompany}
+              manualRole={manualRole}
+              setManualRole={setManualRole}
+              manualLocation={manualLocation}
+              setManualLocation={setManualLocation}
+              manualAnstellungsart={manualAnstellungsart}
+              setManualAnstellungsart={setManualAnstellungsart}
+              manualStatus={manualStatus}
+              setManualStatus={setManualStatus}
+              manualDate={manualDate}
+              setManualDate={setManualDate}
+              isSavingManual={isSavingManual}
+              handleManualAddSubmit={handleManualAddSubmit}
+            />
+
+            {/* Job Table View */}
+            <JobTable
+              applications={applications}
+              filteredAndSortedApplications={filteredAndSortedApplications}
+              isFetchingApps={isFetchingApps}
+              columnWidths={columnWidths}
+              startResize={startResize}
+              selectedRowIds={selectedRowIds}
+              handleToggleSelectAll={handleToggleSelectAll}
+              handleToggleRowSelect={handleToggleRowSelect}
+              editingCell={editingCell}
+              editingValue={editingValue}
+              startEditing={startEditing}
+              cancelEditing={cancelEditing}
+              saveEditing={saveEditing}
+              setEditingValue={setEditingValue}
+              draftChanges={draftChanges}
+              handleUpdateStatusDraft={handleUpdateStatusDraft}
+              isSavingDrafts={isSavingDrafts}
+              getStatusColorClass={getStatusColorClass}
+            />
+          </>
         )}
-
-        <ManualAddForm
-          showAddForm={showAddForm}
-          setShowAddForm={setShowAddForm}
-          manualCompany={manualCompany}
-          setManualCompany={setManualCompany}
-          manualRole={manualRole}
-          setManualRole={setManualRole}
-          manualLocation={manualLocation}
-          setManualLocation={setManualLocation}
-          manualAnstellungsart={manualAnstellungsart}
-          setManualAnstellungsart={setManualAnstellungsart}
-          manualStatus={manualStatus}
-          setManualStatus={setManualStatus}
-          manualDate={manualDate}
-          setManualDate={setManualDate}
-          isSavingManual={isSavingManual}
-          handleManualAddSubmit={handleManualAddSubmit}
-        />
-
-
-
-        {/* Job Table View */}
-        <JobTable
-          applications={applications}
-          filteredAndSortedApplications={filteredAndSortedApplications}
-          isFetchingApps={isFetchingApps}
-          columnWidths={columnWidths}
-          startResize={startResize}
-          selectedRowIds={selectedRowIds}
-          handleToggleSelectAll={handleToggleSelectAll}
-          handleToggleRowSelect={handleToggleRowSelect}
-          editingCell={editingCell}
-          editingValue={editingValue}
-          startEditing={startEditing}
-          cancelEditing={cancelEditing}
-          saveEditing={saveEditing}
-          setEditingValue={setEditingValue}
-          draftChanges={draftChanges}
-          handleUpdateStatusDraft={handleUpdateStatusDraft}
-          isSavingDrafts={isSavingDrafts}
-          getStatusColorClass={getStatusColorClass}
-        />
       </div>
 
       <RenameModal

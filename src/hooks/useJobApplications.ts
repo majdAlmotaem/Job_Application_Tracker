@@ -47,6 +47,10 @@ export const useJobApplications = ({
   };
 
   useEffect(() => {
+    if (!selectedTable) {
+      setApplications([]);
+      return;
+    }
     if (isPendingTab) {
       setApplications([]);
     } else {

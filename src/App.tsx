@@ -23,9 +23,9 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  // "job_applications" is always present as the default table
-  const [selectedTable, setSelectedTable] = useState<string>("job_applications");
-  const [availableTables, setAvailableTables] = useState<string[]>(["job_applications"]);
+  // Initialize with empty selected table and available tables to prevent automatic default table creation
+  const [selectedTable, setSelectedTable] = useState<string>("");
+  const [availableTables, setAvailableTables] = useState<string[]>([]);
 
   // Pending tabs: tabs that exist in the UI but haven't been saved to the DB yet.
   // Key = sanitized table name (e.g. "neue_liste_2"), label = user-facing display name
@@ -47,25 +47,23 @@ export default function App() {
       const response = await fetch("/api/applications/tables");
       if (!response.ok) throw new Error("Failed to load tables");
       const tables: string[] = await response.json();
-      if (tables && tables.length > 0) {
-        setAvailableTables(tables);
-        setSelectedTable((prev) => {
-          const customTables = tables.filter((t) => t !== "job_applications");
-          if (customTables.length > 0) {
-            if (!prev || prev === "job_applications" || !tables.includes(prev)) {
-              return customTables[0];
-            }
+      
+      const customTables = tables.filter((t) => t !== "job_applications");
+      setAvailableTables(tables);
+      
+      setSelectedTable((prev) => {
+        if (customTables.length > 0) {
+          if (prev && prev !== "job_applications" && tables.includes(prev)) {
+            return prev;
           }
-          if (prev && tables.includes(prev)) return prev;
-          return "job_applications";
-        });
-      } else {
-        setAvailableTables(["job_applications"]);
-        setSelectedTable((prev) => (prev ? prev : "job_applications"));
-      }
+          return customTables[0];
+        }
+        return "";
+      });
     } catch (err) {
       console.error("Error loading tables:", err);
-      setAvailableTables((prev) => (prev.length > 0 ? prev : ["job_applications"]));
+      setAvailableTables([]);
+      setSelectedTable("");
     }
   };
 
