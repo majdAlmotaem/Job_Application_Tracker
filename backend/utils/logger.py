@@ -1,8 +1,9 @@
 import os
+import sys
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 
-def setup_logger():
+def setup_logging():
     # Base directory at the workspace root (parent of backend)
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     logs_dir = os.path.join(base_dir, "logs")
@@ -12,19 +13,21 @@ def setup_logger():
     log_file_path = os.path.join(logs_dir, "app.log")
 
     # Define standard format
-    log_format = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-    formatter = logging.Formatter(log_format)
+    log_format = "%(asctime)s | %(levelname)-8s | %(module)s:%(funcName)s:%(lineno)d - %(message)s"
+    date_format = "%Y-%m-%d %H:%M:%S"
+    formatter = logging.Formatter(log_format, datefmt=date_format)
 
-    # 1. Console Stream Handler (Only log CRITICAL events to console to avoid duplication with app.log)
-    stream_handler = logging.StreamHandler()
+    # 1. Console Stream Handler (sys.stdout)
+    stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setFormatter(formatter)
-    stream_handler.setLevel(logging.CRITICAL)
+    stream_handler.setLevel(logging.INFO)
 
-    # 2. Rotating File Handler (Max 5MB per file, keeping 3 old backups)
-    file_handler = RotatingFileHandler(
+    # 2. Timed Rotating File Handler (daily rotation at midnight, keeping 14 days)
+    file_handler = TimedRotatingFileHandler(
         log_file_path,
-        maxBytes=5 * 1024 * 1024,
-        backupCount=3,
+        when="midnight",
+        interval=1,
+        backupCount=14,
         encoding="utf-8"
     )
     file_handler.setFormatter(formatter)
@@ -33,7 +36,7 @@ def setup_logger():
     # Configure root logger
     root_logger = logging.getLogger()
     
-    # Avoid adding duplicate handlers if setup_logger gets imported multiple times
+    # Avoid adding duplicate handlers if setup_logging gets called multiple times
     if not root_logger.handlers:
         root_logger.setLevel(logging.DEBUG)
         root_logger.addHandler(stream_handler)
@@ -49,4 +52,4 @@ def setup_logger():
     app_logger.setLevel(logging.DEBUG)
     return app_logger
 
-logger = setup_logger()
+logger = setup_logging()
