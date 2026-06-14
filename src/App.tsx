@@ -50,8 +50,14 @@ export default function App() {
       if (tables && tables.length > 0) {
         setAvailableTables(tables);
         setSelectedTable((prev) => {
+          const customTables = tables.filter((t) => t !== "job_applications");
+          if (customTables.length > 0) {
+            if (!prev || prev === "job_applications" || !tables.includes(prev)) {
+              return customTables[0];
+            }
+          }
           if (prev && tables.includes(prev)) return prev;
-          return tables[0];
+          return "job_applications";
         });
       } else {
         setAvailableTables(["job_applications"]);
