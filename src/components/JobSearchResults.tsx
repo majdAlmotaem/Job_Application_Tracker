@@ -114,10 +114,10 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
 
           let strokeColor = "stroke-emerald-500";
           let textColor = "text-emerald-400";
-          if (percent < 50) {
-            strokeColor = "stroke-rose-500";
-            textColor = "text-rose-400";
-          } else if (percent < 80) {
+          if (percent < 75) {
+            strokeColor = "stroke-orange-500";
+            textColor = "text-orange-400";
+          } else if (percent < 90) {
             strokeColor = "stroke-amber-500";
             textColor = "text-amber-400";
           }
@@ -197,21 +197,22 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-4 text-xs text-slate-400">
-                    <div className="flex items-center gap-1.5">
-                      <Briefcase className="w-4 h-4 text-blue-400/80" />
-                      <span>{job.company}</span>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full border border-blue-500/10">
+                      <Briefcase className="w-3.5 h-3.5 text-blue-400" />
+                      <span className="font-medium">{job.company}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4 text-blue-400/80" />
-                      <span>{job.location || "Siehe Anzeige"}</span>
+                    <div className="flex items-center gap-1.5 bg-violet-500/10 text-violet-400 px-3 py-1 rounded-full border border-violet-500/10">
+                      <MapPin className="w-3.5 h-3.5 text-violet-400" />
+                      <span className="font-medium">{job.location || "Siehe Anzeige"}</span>
                     </div>
                   </div>
 
                   {job.match_reason && (
-                    <div className="p-3.5 bg-blue-950/30 border border-blue-900/30 rounded-xl">
-                      <p className="text-xs text-blue-300 leading-relaxed">
-                        <span className="font-semibold text-blue-200">Passung:</span> {job.match_reason}
+                    <div className="p-3.5 bg-indigo-500/5 border border-indigo-500/15 border-l-4 border-l-indigo-500 rounded-r-xl rounded-l-none flex items-start gap-2.5">
+                      <Sparkles className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                      <p className="text-xs text-indigo-300 leading-relaxed">
+                        <span className="font-bold text-indigo-200">Passung:</span> {job.match_reason}
                       </p>
                     </div>
                   )}

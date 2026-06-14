@@ -19,6 +19,7 @@ Die Anwendung ist als Fullstack-Webanwendung aufgebaut:
 - **Framework:** FastAPI für eine hochperformante, asynchrone Python-API.
 - **Datenbank & ORM:** SQLite mit SQLAlchemy zur Speicherung von Bewerbungen. Tabellen werden dynamisch auf Basis von Benutzereingaben oder CSV-Importen erstellt (`get_job_application_model`).
 - **KI-Integration:** Gemini-Modell (`gemini-3.5-flash`) zur semantischen Analyse von E-Mails, Filtern von Spam und automatischem Extrahieren strukturierter JSON-Daten.
+- **Logging-System:** Integrierter `TimedRotatingFileHandler` zur täglichen Rotation der Logdatei `logs/app.log` um Mitternacht (Aufbewahrungszeitraum: 14 Tage) und gleichzeitiger Konsolenausgabe über `sys.stdout` mit einheitlichem Format.
 - **API-Endpunkte:**
   - `GET /api/applications` - Lädt Bewerbungen einer Tabelle.
   - `POST /api/applications` - Erstellt eine neue Bewerbung in einer Tabelle.
@@ -42,18 +43,24 @@ Die Anwendung ist als Fullstack-Webanwendung aufgebaut:
 │   ├── routers/           # FastAPI Routen (applications, csv, email_analysis)
 │   ├── schemas/           # Pydantic Schemata für API-Validierung
 │   ├── services/          # Externe Services (z.B. Gemini API Integration)
+│   ├── utils/
+│   │   └── logger.py      # Zentralisiertes Logging mit zeitbasierter Rotation
 │   ├── database.py        # SQLite Engine & Session-Konfiguration
 │   ├── requirements.txt   # Python Abhängigkeiten
 │   └── main.py            # FastAPI App & Middleware Routing
 ├── src/
 │   ├── components/
+│   │   ├── CVTemplates/        # Lebenslauf A4 Vorlagen-Komponenten
+│   │   ├── ActivityRings.tsx   # Apple-Watch-Style konzentrische Fortschrittsringe
 │   │   ├── JobTable.tsx        # Interaktive Jobtabelle (Editierbar per Doppelklick, Spalten-Resize)
 │   │   ├── Sidebar.tsx         # Collapsible Seitenleiste mit Sub-Tabs für einzelne Tabellen
-│   │   └── StatsDashboard.tsx  # Metriken und Kacheln (Zusagen, Absagen, etc.) sowie interaktiver Tagesziel-Fortschrittsring
+│   │   └── StatsDashboard.tsx  # Metriken und Kacheln (Zusagen, Absagen, etc.)
 │   ├── pages/
-│   │   ├── LandingPage.tsx     # Übersichtsseite mit Direktlinks
+│   │   ├── HomePage.tsx        # Willkommensseite & Schnellzugriff-Navigationskacheln
+│   │   ├── DashboardPage.tsx   # Hauptstatistiken, Aktivitätsringe, anstehende Termine
+│   │   ├── CVMakerPage.tsx     # Lebenslauf-Editor mit dynamischer Seitenvorschau & PDF-Druck
 │   │   ├── JobTrackerPage.tsx  # Haupt-Tracker-View mit Gmail-Sync und Tab-Verwaltung
-│   │   ├── JobSearchPage.tsx   # Jobsuche (Coming Soon)
+│   │   ├── JobSearchPage.tsx   # Jobsuche mit Live-Scraping und Gemini-Matching
 │   │   └── ProfilePage.tsx     # Profil bearbeiten
 │   ├── services/
 │   │   ├── gmailService.ts     # Schnittstelle zur Gmail API
@@ -70,10 +77,12 @@ Die Anwendung ist als Fullstack-Webanwendung aufgebaut:
 ## ✨ Hauptfunktionen & Features
 
 - **Automatisierter Gmail-Import:** Scannt und synchronisiert E-Mails via Google OAuth und extrahiert mithilfe der Gemini-API strukturierte Bewerbungsdaten.
-- **Tagesziel-Tracker (Daily Goal):** Setzen Sie ein tägliches Bewerbungsziel. Die Anwendung zählt Ihre am aktuellen Tag eingetragenen Bewerbungen und visualisiert den Fortschritt über einen animierten, kreisförmigen SVG-Fortschrittsring.
+- **Konzentrisches Aktivitätsringe-Dashboard:** Apple-Watch-Style Fortschrittsanzeige für Tagesziel, Interview-Erinnerungsrate und Erfolge (Zusagen) mit Maus-Hover-Tooltips.
+- **Lebenslauf-Generator (CV-Maker):** Interaktiver Split-Screen Editor mit Live-A4-Seitenvorschau, Farbthemen und Schriftarten-Auswahl sowie PDF-Direktdruck und Seiten-Umbrüchen bei Textüberlauf.
+- **Intelligente Jobsuche & Gemini-Matching:** Live-Jobsuchfunktion mit Relevanz-Abgleich durch die Gemini-API, Begründung der Passgenauigkeit (KI-Begründungsbox) und dynamischer Score-Einfärbung.
 - **Interview-Terminerinnerungen (Reminders):** Verknüpfen Sie anstehende Interview-Termine direkt mit Ihren Bewerbungen. Diese werden in der SQLite-Datenbank persistiert und automatisch bereinigt, sobald das Datum abgelaufen ist oder sich der Status der Bewerbung ändert.
-- **Minimalistisches Stats-Dashboard:** Behalten Sie Ihre Gesamtzahl an Bewerbungen, aktive Interviews, Angebote und Absagen auf einen Blick im Auge.
 - **Dynamische Tabellenverwaltung:** Legen Sie neue Bewerbungslisten an, benennen Sie diese um oder löschen Sie sie per Klick.
+- **Professionelles, zeitbasiertes Logging:** Backend-Protokollierung mit automatischer Mitternachts-Rotation der Logdateien, 14 Tagen Aufbewahrungsfrist, UTF-8 Kodierung und sys.stdout Konsolenausgabe.
 
 ---
 
