@@ -9,9 +9,7 @@ SyncSheet ist die ultimative All-in-One-Plattform zur Organisation, Verwaltung u
 ### 1. 🏠 Startseite (Home)
 Der zentrale Einstiegspunkt in deine Jobsuche. Hier erhältst du einen schnellen Überblick und direkten Zugriff auf alle Kernbereiche der Anwendung.
 
-> 📸 **Screenshot Platzhalter: Startseite**
-> ![Startseite](https://via.placeholder.com/800x450.png?text=SyncSheet+-+Home+Page+Preview)
-*Ersetze diesen Link mit einem Screenshot deiner Startseite unter `/`.*
+![Startseite](assets/images/home.png)
 
 ---
 
@@ -21,9 +19,7 @@ Verfolge deinen Fortschritt wie ein Sportziel!
 * **Statistiken:** Kacheln zur Auswertung aller Bewerbungsstatus (Offen, Interviews, Absagen, Zusagen).
 * **Terminplaner:** Automatisch verwaltete Interview-Termine und Erinnerungen.
 
-> 📸 **Screenshot Platzhalter: Dashboard**
-> ![Dashboard](https://via.placeholder.com/800x450.png?text=SyncSheet+-+Dashboard+Page+Preview)
-*Ersetze diesen Link mit einem Screenshot deines Dashboards unter `/dashboard`.*
+![Dashboard](assets/images/Dashboard.png)
 
 ---
 
@@ -33,9 +29,7 @@ Das Herzstück deiner Bewerbungsorganisation.
 * **Interaktive Tabellen:** Verwalte deine Bewerbungen in einer hochflexiblen Tabelle. Bearbeite Einträge direkt per Doppelklick und passe Spaltenbreiten individuell an.
 * **Multi-Tabellen-Support:** Erstelle, benenne und lösche verschiedene Listen/Tabellen (z. B. für unterschiedliche Berufsfelder oder Importe).
 
-> 📸 **Screenshot Platzhalter: Job-Tracker**
-> ![Job-Tracker](https://via.placeholder.com/800x450.png?text=SyncSheet+-+Job+Tracker+Page+Preview)
-*Ersetze diesen Link mit einem Screenshot des Job-Trackers unter `/tracker`.*
+![Job-Tracker](assets/images/Bewerbungs-tracker.png)
 
 ---
 
@@ -44,9 +38,8 @@ Finde die passenden Stellenangebote direkt in der App.
 * **Live-Suche:** Echtzeit-Stellensuche auf Premium-Jobportalen.
 * **KI-Matching:** Die Gemini-API analysiert die Übereinstimmung der gefundenen Stellen mit deinem Profil und liefert dir eine präzise, schriftliche Begründung, warum die Stelle zu dir passt.
 
-> 📸 **Screenshot Platzhalter: Jobsuche**
-> ![Jobsuche](https://via.placeholder.com/800x450.png?text=SyncSheet+-+Job+Search+Page+Preview)
-*Ersetze diesen Link mit einem Screenshot der Jobsuche unter `/search`.*
+![Jobsuche Ergebnisse](assets/images/job-suche1.png)
+![Jobsuche Detailansicht](assets/images/job-suche2.png)
 
 ---
 
@@ -56,18 +49,12 @@ Erstelle im Handumdrehen einen überzeugenden, professionellen Lebenslauf.
 * **Flexibles Design:** Wähle aus verschiedenen professionellen Farbthemen und Schriftarten.
 * **Direktdruck:** Lade deinen Lebenslauf direkt als PDF herunter oder drucke ihn aus dem Browser heraus.
 
-> 📸 **Screenshot Platzhalter: CV Maker**
-> ![CV Maker](https://via.placeholder.com/800x450.png?text=SyncSheet+-+CV+Maker+Page+Preview)
-*Ersetze diesen Link mit einem Screenshot des CV Makers unter `/cv-maker`.*
+![CV Maker](assets/images/cv-maker.png)
 
 ---
 
 ### 6. 👤 Profil & Einstellungen
 Passe deine Präferenzen, deinen Wunschberuf und deine Suchkriterien an, um das KI-Matching optimal auf dich einzustellen.
-
-> 📸 **Screenshot Platzhalter: Profil & Einstellungen**
-> ![Profil](https://via.placeholder.com/800x450.png?text=SyncSheet+-+Profile+Page+Preview)
-*Ersetze diesen Link mit einem Screenshot der Profilseite unter `/profile`.*
 
 ---
 
@@ -75,4 +62,4 @@ Passe deine Präferenzen, deinen Wunschberuf und deine Suchkriterien an, um das 
 
 Möchtest du das Projekt lokal ausführen oder weiterentwickeln? Alle technischen Details, die Systemarchitektur sowie Installationsanweisungen findest du in unserer ausführlichen Entwickler-Dokumentation:
 
-👉 **[Zur Entwickler-Dokumentation lesen](docs/developer_documentation.md)**
+👉 **[Zur Entwickler-Dokumentation](docs/developer_documentation.md)**
