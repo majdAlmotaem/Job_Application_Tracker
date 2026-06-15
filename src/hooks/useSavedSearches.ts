@@ -16,7 +16,6 @@ export interface SavedSearch {
     location: string;
     url: string;
     match_reason: string;
-    match_score?: number;
     is_saved?: boolean;
   }>;
   created_at?: string;

@@ -325,8 +325,7 @@ async def search_live_jobs(criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
     3. Die URL MUSS ein direkter, funktionierender Link zur Original-Stellenanzeige sein.
     
     Gib exakt maximal 10 hochrelevante Ergebnisse zurück. 
-    Begründe in 'match_reason' in einem kurzen Satz auf Deutsch, warum der Job passt. 
-    Bewerte die Passgenauigkeit im Feld 'match_score' auf einer Skala von 1 bis 10.
+    Begründe in 'match_reason' in einem kurzen Satz auf Deutsch, warum der Job passt.
     """
     
     schema = {
@@ -338,10 +337,9 @@ async def search_live_jobs(criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "job_title": {"type": "STRING"},
                 "location": {"type": "STRING"},
                 "url": {"type": "STRING"},
-                "match_reason": {"type": "STRING"},
-                "match_score": {"type": "INTEGER"} 
+                "match_reason": {"type": "STRING"}
             },
-            "required": ["company", "job_title", "location", "url", "match_reason", "match_score"]
+            "required": ["company", "job_title", "location", "url", "match_reason"]
         }
     }
     

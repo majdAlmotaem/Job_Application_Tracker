@@ -21,7 +21,6 @@ class JobSearchResultItem(BaseModel):
     location: str
     url: str
     match_reason: str
-    match_score: Optional[int] = None
 
 class JobSearchResponse(BaseModel):
     results: List[JobSearchResultItem]

@@ -70,11 +70,6 @@ export const LastSearchResultsCard: React.FC<LastSearchResultsCardProps> = ({
                 </div>
                 
                 <div className="flex items-center gap-2 shrink-0">
-                  {job.match_score !== undefined && (
-                    <span className="text-[10px] font-black text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20 font-mono">
-                      {job.match_score}/10
-                    </span>
-                  )}
                   <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover/item:text-purple-450 transition" />
                 </div>
               </a>
