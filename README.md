@@ -15,8 +15,7 @@ Der zentrale Einstiegspunkt in deine Jobsuche. Hier erhältst du einen schnellen
 
 ### 2. 📊 Dashboard
 Verfolge deinen Fortschritt wie ein Sportziel! 
-* **Aktivitätsringe:** Konzentrische Ringe im Apple-Watch-Style zeigen dir auf einen Blick dein Tagesziel, deine anstehenden Interviews und deine Erfolgsquote (Zusagen).
-* **Statistiken:** Kacheln zur Auswertung aller Bewerbungsstatus (Offen, Interviews, Absagen, Zusagen).
+* **Aktivitätsringe:** Konzentrische Ringe zeigen dir auf einen Blick dein Tagesziel, deine anstehenden Interviews und deine Erfolgsquote (Zusagen).
 * **Terminplaner:** Automatisch verwaltete Interview-Termine und Erinnerungen.
 
 ![Dashboard](assets/images/Dashboard.png)
