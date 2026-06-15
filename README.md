@@ -53,7 +53,7 @@ Erstelle im Handumdrehen einen überzeugenden, professionellen Lebenslauf.
 ---
 
 ### 6. 👤 Profil & Einstellungen
-Passe deine Präferenzen, deinen Wunschberuf und deine Suchkriterien an, um das KI-Matching optimal auf dich einzustellen.
+Coming Soon...
 
 ---
 
