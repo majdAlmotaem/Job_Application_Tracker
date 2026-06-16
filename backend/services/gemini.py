@@ -169,12 +169,15 @@ async def analyze_emails(emails: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         
         email_parts = []
         for idx, email in enumerate(chunk):
+            body = email.get('body', '')
+            if len(body) > 2500:
+                body = body[:2500] + "\n... [Truncated due to length]"
             part = (
                 f"--- EMAIL #{idx + 1} ---\n"
                 f"ID: {email.get('id', '')}\n"
                 f"Subject: {email.get('subject', '')}\n"
                 f"Snippet: {email.get('snippet', '')}\n"
-                f"Body: {email.get('body', '')}\n"
+                f"Body: {body}\n"
                 f"Date: {email.get('date', '')}\n"
                 f"--------------------"
             )
