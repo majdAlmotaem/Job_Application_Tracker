@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User, signOut } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 import { logger } from '../utils/logger';
@@ -60,3 +60,14 @@ export const getAccessToken = async (): Promise<string | null> => {
 export const setAccessTokenInMemory = (token: string) => {
   cachedAccessToken = token;
 };
+
+export const googleSignOut = async (): Promise<void> => {
+  try {
+    await signOut(auth);
+    cachedAccessToken = null;
+  } catch (error: any) {
+    logger.error('Sign out error:', error);
+    throw error;
+  }
+};
+

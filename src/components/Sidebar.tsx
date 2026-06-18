@@ -16,6 +16,7 @@ import {
   Clock,
   Home,
   FileText,
+  Settings,
 } from "lucide-react";
 import { SavedSearch } from "../hooks/useSavedSearches";
 
@@ -27,10 +28,6 @@ interface PendingTab {
 interface SidebarProps {
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (val: boolean) => void;
-  token: string | null;
-  user: User | null;
-  isLoggingIn: boolean;
-  onLogin: () => void;
   availableTables: string[];
   pendingTabs: PendingTab[];
   selectedTable: string;
@@ -49,10 +46,6 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   isSidebarCollapsed,
   setIsSidebarCollapsed,
-  token,
-  user,
-  isLoggingIn,
-  onLogin,
   availableTables,
   pendingTabs,
   selectedTable,
@@ -67,8 +60,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   renameTab,
 }) => {
   const navigate = useNavigate();
-  const [trackerOpen, setTrackerOpen] = useState(true);
-  const [searchTabsOpen, setSearchTabsOpen] = useState(true);
+  const [trackerOpen, setTrackerOpen] = useState(false);
+  const [searchTabsOpen, setSearchTabsOpen] = useState(false);
 
   const formatTableName = (name: string) => {
     if (name === "job_applications") return "Standard-Tabelle";
@@ -360,69 +353,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </NavLink>
         </nav>
 
-        {/* ── Google Account / bottom section ── */}
-        <div className="shrink-0 mt-6">
-          {isSidebarCollapsed ? (
-            <div className="pt-5 border-t border-white/5 flex flex-col items-center gap-4">
-              <div
-                onClick={() => setIsSidebarCollapsed(false)}
-                className="cursor-pointer"
-                title={token ? "Verbunden mit Google" : "Google verbinden"}
-              >
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center border ${
-                  token
-                    ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
-                    : "bg-amber-500/10 border-amber-500/25 text-amber-400"
-                }`}>
-                  <Mail className="h-4 w-4" />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="pt-5 border-t border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Google-Konto</span>
-                {token ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Verbunden
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-amber-400">Nicht verbunden</span>
-                )}
-              </div>
-
-              {token ? (
-                <div className="bg-slate-950/40 backdrop-blur-md rounded-xl p-3.5 border border-white/5">
-                  <div className="text-xs font-bold text-slate-100 flex items-center gap-1.5 truncate">
-                    <Mail className="h-4 w-4 text-emerald-500 shrink-0" />
-                    <span>{user?.email || "Gmail"}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3 bg-slate-950/45 backdrop-blur-md rounded-xl p-3.5 border border-white/5">
-                  <div className="text-[11px] text-slate-300 leading-relaxed">
-                    Verbinden Sie Ihr Google-Konto, um Bewerbungen aus Gmail zu scannen.
-                  </div>
-                  <button
-                    onClick={onLogin}
-                    disabled={isLoggingIn}
-                    className="w-full justify-center flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-lg text-xs shadow-sm transition cursor-pointer"
-                  >
-                    {isLoggingIn ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Konto verknüpfen"}
-                  </button>
-                </div>
-              )}
-
-              {user && (
-                <div className="pt-4 border-t border-slate-800">
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Benutzer</div>
-                  <div className="font-bold text-sm text-slate-100 mt-1 truncate">{user?.displayName || "User"}</div>
-                  <div className="text-[11px] text-slate-400 font-mono truncate">{user?.email}</div>
-                </div>
-              )}
-            </div>
-          )}
+        {/* ── Settings / bottom section ── */}
+        <div className="shrink-0 mt-auto pt-4 border-t border-white/5">
+          <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+              `flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-lg transition ${
+                isActive
+                  ? "bg-blue-500/10 border border-blue-500/15 text-blue-400"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
+              }`
+            }
+            title={isSidebarCollapsed ? "Einstellungen" : undefined}
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            {!isSidebarCollapsed && <span>Einstellungen</span>}
+          </NavLink>
         </div>
 
       </div>

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { User } from "firebase/auth";
 import { Mail, RefreshCw, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { initAuth, googleSignIn } from "./services/googleAuth";
+import { initAuth, googleSignIn, googleSignOut } from "./services/googleAuth";
 import { Sidebar } from "./components/Sidebar";
 import { HomePage } from "./pages/HomePage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -11,6 +11,7 @@ import { JobTrackerPage } from "./pages/JobTrackerPage";
 import { JobSearchPage } from "./pages/JobSearchPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { CVMakerPage } from "./pages/CVMakerPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { useSavedSearches } from "./hooks/useSavedSearches";
 import { useJobApplications } from "./hooks/useJobApplications";
 import { JobApplication } from "./types";
@@ -231,6 +232,19 @@ export default function App() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await googleSignOut();
+      setToken(null);
+      setUser(null);
+      triggerToast("success", "Verbindung zu Google getrennt.");
+    } catch (err: any) {
+      console.error(err);
+      triggerToast("error", err.message || "Fehler beim Abmelden.");
+    }
+  };
+
+
   const handleGoogleSignInWrapper = async () => {
     try {
       const authResult = await googleSignIn();
@@ -267,10 +281,6 @@ export default function App() {
         <Sidebar
           isSidebarCollapsed={isSidebarCollapsed}
           setIsSidebarCollapsed={setIsSidebarCollapsed}
-          token={token}
-          user={user}
-          isLoggingIn={isLoggingIn}
-          onLogin={handleLogin}
           availableTables={availableTables}
           pendingTabs={pendingTabs}
           selectedTable={selectedTable}
@@ -357,7 +367,21 @@ export default function App() {
             />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/cv-maker" element={<CVMakerPage />} />
+            <Route
+              path="/settings"
+              element={
+                <SettingsPage
+                  user={user}
+                  token={token}
+                  isLoggingIn={isLoggingIn}
+                  onLogin={handleLogin}
+                  onLogout={handleLogout}
+                  triggerToast={triggerToast}
+                />
+              }
+            />
           </Routes>
+
         </main>
 
         {/* Confirmation Modal */}

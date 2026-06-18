@@ -44,6 +44,7 @@ from backend.routers.applications import router as applications_router
 from backend.routers.csv import router as csv_router
 from backend.routers.emails import router as emails_router
 from backend.routers.job_search import router as job_search_router, searches_router
+from backend.routers.backup import router as backup_router
 
 app = FastAPI(
     title="Job Application Tracker API",
@@ -79,6 +80,7 @@ app.include_router(csv_router)
 app.include_router(emails_router)
 app.include_router(job_search_router)
 app.include_router(searches_router)
+app.include_router(backup_router)
 
 # Production Static File Serving (Vite build folder: dist)
 dist_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../dist"))
