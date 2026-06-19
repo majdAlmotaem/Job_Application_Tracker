@@ -303,12 +303,21 @@ async def search_live_jobs(criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
     job_title = criteria.get("job_title", "")
     location = criteria.get("location", "")
     employment_type = criteria.get("employment_type", "")
+    date_posted_raw = criteria.get("date_posted", "anytime")
 
-    logger.info(f"Starting live job search. Core criteria: Job={job_title}, Location={location}, Type={employment_type}")
+    date_posted_map = {
+        "24h": "in den letzten 24 Stunden",
+        "3days": "in den letzten 3 Tagen",
+        "week": "in der letzten Woche",
+        "month": "im letzten Monat"
+    }
+    date_posted_str = date_posted_map.get(date_posted_raw, "beliebiger Zeitpunkt")
+
+    logger.info(f"Starting live job search. Core criteria: Job={job_title}, Location={location}, Type={employment_type}, DatePosted={date_posted_raw}")
     
     prompt = (
         f"Führe eine Websuche nach aktuellen Stellenanzeigen durch für: "
-        f"Jobtitel: '{job_title}', Ort: '{location}', Arbeitsmodell: '{employment_type}'. "
+        f"Jobtitel: '{job_title}', Ort: '{location}', Arbeitsmodell: '{employment_type}', Veröffentlichungsdatum: '{date_posted_str}'. "
         f"Gib maximal 10 Ergebnisse zurück. Die URL muss ein direkter Link zur Originalanzeige sein. "
         f"Begründe kurz auf Deutsch in 'match_reason'."
     )
