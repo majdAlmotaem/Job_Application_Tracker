@@ -3,6 +3,14 @@ import sys
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
+class SafeTimedRotatingFileHandler(TimedRotatingFileHandler):
+    def doRollover(self):
+        try:
+            super().doRollover()
+        except PermissionError:
+            # Workaround for Windows file locking issues during uvicorn reload
+            pass
+
 def setup_logging():
     # Base directory at the workspace root (parent of backend)
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,18 +25,20 @@ def setup_logging():
     date_format = "%Y-%m-%d %H:%M:%S"
     formatter = logging.Formatter(log_format, datefmt=date_format)
 
-    # 1. Console Stream Handler (sys.stdout)
+    # 1. Console Stream Handler (sys.stdout) - Set to CRITICAL to keep terminal clean
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setFormatter(formatter)
-    stream_handler.setLevel(logging.INFO)
+    stream_handler.setLevel(logging.CRITICAL)
 
     # 2. Timed Rotating File Handler (daily rotation at midnight, keeping 14 days)
-    file_handler = TimedRotatingFileHandler(
+    # Using delay=True prevents the uvicorn supervisor from locking the file at import time
+    file_handler = SafeTimedRotatingFileHandler(
         log_file_path,
         when="midnight",
         interval=1,
         backupCount=14,
-        encoding="utf-8"
+        encoding="utf-8",
+        delay=True
     )
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
@@ -36,17 +46,27 @@ def setup_logging():
     # Configure root logger
     root_logger = logging.getLogger()
     
-    # Avoid adding duplicate handlers if setup_logging gets called multiple times
-    if not root_logger.handlers:
-        root_logger.setLevel(logging.DEBUG)
-        root_logger.addHandler(stream_handler)
-        root_logger.addHandler(file_handler)
+    # Clear existing handlers to prevent duplicates or uvicorn overrides
+    for handler in list(root_logger.handlers):
+        root_logger.removeHandler(handler)
         
-    # Silence spammy third-party loggers
-    logging.getLogger("watchfiles").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("anyio").setLevel(logging.WARNING)
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(stream_handler)
+    root_logger.addHandler(file_handler)
+        
+    # Redirect and silence console logging for uvicorn loggers
+    for logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access"]:
+        l = logging.getLogger(logger_name)
+        l.propagate = True
+        l.handlers = []
+        l.setLevel(logging.DEBUG)
+
+    # Silence spammy third-party loggers (direct to WARNING)
+    for logger_name in ["watchfiles", "httpcore", "httpx", "anyio"]:
+        l = logging.getLogger(logger_name)
+        l.propagate = True
+        l.handlers = []
+        l.setLevel(logging.WARNING)
         
     app_logger = logging.getLogger("app")
     app_logger.setLevel(logging.DEBUG)

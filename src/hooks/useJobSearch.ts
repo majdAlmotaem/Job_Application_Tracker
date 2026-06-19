@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useGlobalTask } from "../context/GlobalTaskContext";
 
 export interface JobSearchResultItem {
   company: string;
@@ -19,13 +20,48 @@ export interface JobSearchCriteria {
 
 export const useJobSearch = () => {
   const [searchResults, setSearchResults] = useState<JobSearchResultItem[]>([]);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const {
+    isJobSearchRunning: isSearching,
+    jobSearchProgress: syncProgress,
+    jobSearchPhase: syncPhase,
+    jobSearchDetails: syncDetails,
+    startJobSearch: startAITask,
+    updateJobSearch: updateAITask,
+    stopJobSearch: stopAITask,
+  } = useGlobalTask();
 
   const executeJobSearch = async (criteria: JobSearchCriteria) => {
-    setIsSearching(true);
     setSearchError(null);
     setSearchResults([]);
+    
+    startAITask("Suchanfrage wird formatiert...", "Kriterien werden analysiert");
+    
+    let currentProgress = 5;
+    const interval = setInterval(() => {
+      currentProgress += Math.floor(Math.random() * 8) + 2;
+      if (currentProgress >= 95) {
+        currentProgress = 95;
+        updateAITask(95, "Stellenanzeigen werden extrahiert...", "Die passendsten Angebote werden ausgewählt");
+      } else {
+        let phaseStr = "Job-Suche läuft...";
+        let detailsStr = "";
+        if (currentProgress > 75) {
+          phaseStr = "Stellenanzeigen werden extrahiert...";
+          detailsStr = "Die passendsten Angebote werden ausgewählt";
+        } else if (currentProgress > 50) {
+          phaseStr = "Live-Websuche läuft...";
+          detailsStr = "Google-Suchergebnisse werden analysiert";
+        } else if (currentProgress > 25) {
+          phaseStr = "Suchkriterien werden verarbeitet...";
+          detailsStr = "Gemini initiiert die Google-Suche";
+        } else {
+          phaseStr = "Suchanfrage wird formatiert...";
+          detailsStr = "Kriterien werden analysiert";
+        }
+        updateAITask(currentProgress, phaseStr, detailsStr);
+      }
+    }, 500);
 
     try {
       const response = await fetch("/api/jobs/search", {
@@ -50,7 +86,8 @@ export const useJobSearch = () => {
       setSearchError(err.message || "Ein unerwarteter Fehler ist aufgetreten.");
       return null;
     } finally {
-      setIsSearching(false);
+      clearInterval(interval);
+      stopAITask();
     }
   };
 
@@ -60,5 +97,8 @@ export const useJobSearch = () => {
     isSearching,
     searchError,
     executeJobSearch,
+    syncProgress,
+    syncPhase,
+    syncDetails,
   };
 };

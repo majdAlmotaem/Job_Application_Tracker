@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FileUp, FileText, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { useGlobalTask } from "../context/GlobalTaskContext";
 
 interface CVExtractionResult {
   job_title: string;
@@ -26,40 +27,57 @@ export const CVAutoFiller: React.FC<CVAutoFillerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState(0);
   const [loadingPhase, setLoadingPhase] = useState("PDF-Text extrahieren...");
+  const {
+    startJobSearch: startAITask,
+    updateJobSearch: updateAITask,
+    stopJobSearch: stopAITask,
+  } = useGlobalTask();
 
   useEffect(() => {
     let intervalId: any;
     if (status === "loading") {
       setProgress(0);
       setLoadingPhase("PDF-Text extrahieren...");
+      startAITask("PDF-Text extrahieren...", "Lebenslauf-Analyse wird gestartet...");
       
-      const startTime = Date.now();
       intervalId = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 98) return prev;
           
           let increment = 1;
+          let phase = "Lebenslauf-Text extrahieren...";
           if (prev < 30) {
             increment = 2 + Math.random() * 2; // Fast start
-            setLoadingPhase("Lebenslauf-Text extrahieren...");
+            phase = "Lebenslauf-Text extrahieren...";
           } else if (prev < 60) {
             increment = 0.8 + Math.random() * 0.8; // Connecting to API
-            setLoadingPhase("Verbindung mit Gemini API herstellen...");
+            phase = "Verbindung mit Gemini API herstellen...";
           } else if (prev < 85) {
             increment = 0.3 + Math.random() * 0.3; // Structuring CV schema
-            setLoadingPhase("Daten extrahieren und strukturieren...");
+            phase = "Daten extrahieren und strukturieren...";
           } else {
             increment = 0.05 + Math.random() * 0.05; // Trickling
-            setLoadingPhase("Ergebnisse finalisieren...");
+            phase = "Ergebnisse finalisieren...";
           }
           
-          return Math.min(98, prev + increment);
+          const next = Math.min(98, prev + increment);
+          setLoadingPhase(phase);
+          updateAITask(next, "Lebenslauf analysieren...", phase);
+          return next;
         });
       }, 300);
     } else if (status === "success") {
       setProgress(100);
+      updateAITask(100, "Analyse erfolgreich!", "Daten wurden extrahiert.");
+      setTimeout(() => stopAITask(), 1200);
     } else {
       setProgress(0);
+      if (status === "error") {
+        updateAITask(0, "Fehler bei der Analyse", "Der Lebenslauf konnte nicht ausgewertet werden.");
+        setTimeout(() => stopAITask(), 3000);
+      } else {
+        stopAITask();
+      }
     }
     
     return () => clearInterval(intervalId);

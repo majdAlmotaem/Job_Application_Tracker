@@ -52,6 +52,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+@app.on_event("startup")
+async def startup_event():
+    from backend.utils.logger import setup_logging
+    setup_logging()
+
 # CORS configuration to support direct front-end calls if proxy is bypassed
 app.add_middleware(
     CORSMiddleware,

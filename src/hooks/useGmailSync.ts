@@ -3,6 +3,7 @@ import { User } from "firebase/auth";
 import { JobApplication, EmailUpdate } from "../types";
 import { searchGmailMessages } from "../services/gmailService";
 import { isSimilarCompany, isFuzzyDuplicate } from "../utils/matchingLogic";
+import { useGlobalTask } from "../context/GlobalTaskContext";
 
 export interface UseGmailSyncProps {
   user: User | null;
@@ -32,12 +33,19 @@ export const useGmailSync = ({
   triggerToast,
   triggerConfirm,
 }: UseGmailSyncProps) => {
-  const [isScanning, setIsScanning] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
-  const [syncPhase, setSyncPhase] = useState("Gmail-Postfach durchsuchen...");
-  const [syncDetails, setSyncDetails] = useState("Hole E-Mails aus Ihrem Gmail-Postfach...");
-  const [isInboxScanned, setIsInboxScanned] = useState<boolean>(false);
-  const [emailUpdates, setEmailUpdates] = useState<EmailUpdate[]>([]);
+  const {
+    isEmailSyncRunning: isScanning,
+    emailSyncProgress: syncProgress,
+    emailSyncPhase: syncPhase,
+    emailSyncDetails: syncDetails,
+    startEmailSync: startAITask,
+    updateEmailSync: updateAITask,
+    stopEmailSync: stopAITask,
+    isInboxScanned,
+    setIsInboxScanned,
+    emailUpdates,
+    setEmailUpdates,
+  } = useGlobalTask();
   const [syncingEmailId, setSyncingEmailId] = useState<string | null>(null);
   
   // UI states for expanding elements
@@ -56,52 +64,42 @@ export const useGmailSync = ({
   const handleScanInboxAndAnalyze = async () => {
     let currentToken = token;
     if (!currentToken) {
-      setIsScanning(true);
-      setSyncProgress(2);
-      setSyncPhase("Google Authentifizierung...");
-      setSyncDetails("Bitte authentifizieren Sie sich über das Google Popup...");
+      startAITask("Google Authentifizierung...", "Bitte authentifizieren Sie sich über das Google Popup...");
       try {
         const authResult = await googleSignIn();
         if (authResult) {
           currentToken = authResult.accessToken;
           triggerToast("success", "Erfolgreich mit Google verbunden.");
         } else {
-          setIsScanning(false);
+          stopAITask();
           return;
         }
       } catch (err: any) {
         console.error(err);
         triggerToast("error", err.message || "Authentifizierung fehlgeschlagen.");
-        setIsScanning(false);
+        stopAITask();
         return;
       }
     }
 
-    setIsScanning(true);
-    setSyncProgress(5);
-    setSyncPhase("Gmail-Postfach durchsuchen...");
-    setSyncDetails("Verbindung mit Gmail wird hergestellt...");
+    startAITask("Gmail-Postfach durchsuchen...", "Verbindung mit Gmail wird hergestellt...");
     let progressInterval: any;
     try {
       const messages = await searchGmailMessages(currentToken!, gmailQuery, 15);
       const totalEmails = messages.length;
 
       if (totalEmails === 0) {
-        setSyncProgress(100);
-        setSyncPhase("Keine E-Mails gefunden.");
-        setSyncDetails("Es wurden keine neuen E-Mails in Ihrem Postfach gefunden.");
+        updateAITask(100, "Keine E-Mails gefunden.", "Es wurden keine neuen E-Mails in Ihrem Postfach gefunden.");
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        setIsScanning(false);
+        stopAITask();
         setIsInboxScanned(true);
         setEmailUpdates([]);
         triggerToast("success", "Keine E-Mails gefunden.");
         return;
       }
 
-      setSyncProgress(15);
-      setSyncPhase("E-Mails analysieren...");
+      updateAITask(15, "E-Mails analysieren...", `Gefunden: ${totalEmails} E-Mails. Analysiere via Gemini...`);
       const numChunks = Math.ceil(totalEmails / 5);
-      setSyncDetails(`Gefunden: ${totalEmails} E-Mails. Analysiere in ${numChunks} Blöcken via Gemini...`);
 
       // Start progress simulation interval
       let currentProgress = 15;
@@ -114,19 +112,21 @@ export const useGmailSync = ({
         currentProgress += stepIncrement + Math.random() * 0.05;
         if (currentProgress >= 95) {
           currentProgress = 95;
-          setSyncDetails("Antwort wird finalisiert. Gleich fertig...");
+          updateAITask(95, "E-Mails analysieren...", "Antwort wird finalisiert. Gleich fertig...");
         } else {
+          let phaseStr = "E-Mails analysieren...";
+          let detailsStr = "";
           if (currentProgress < 40) {
-            setSyncDetails(`Analysiere E-Mails (Block 1/${numChunks})...`);
+            detailsStr = `Analysiere E-Mails (Block 1/${numChunks})...`;
           } else if (currentProgress < 70) {
             const currentBlock = Math.min(numChunks, 2);
-            setSyncDetails(`Extrahiere Firmen und Bewerbungsstatus (Block ${currentBlock}/${numChunks})...`);
+            detailsStr = `Extrahiere Firmen und Bewerbungsstatus (Block ${currentBlock}/${numChunks})...`;
           } else {
             const currentBlock = Math.min(numChunks, numChunks);
-            setSyncDetails(`Ergebnisse werden strukturiert (Block ${currentBlock}/${numChunks})...`);
+            detailsStr = `Ergebnisse werden strukturiert (Block ${currentBlock}/${numChunks})...`;
           }
+          updateAITask(currentProgress, phaseStr, detailsStr);
         }
-        setSyncProgress(currentProgress);
       }, intervalMs);
 
       const response = await fetch("/api/analyze-emails", {
@@ -175,23 +175,19 @@ export const useGmailSync = ({
         return true;
       });
 
-      setSyncProgress(100);
-      setSyncPhase("Synchronisierung erfolgreich!");
-      setSyncDetails(`Analyse abgeschlossen. ${filteredUpdates.length} relevante Updates geladen.`);
+      updateAITask(100, "Synchronisierung erfolgreich!", `Analyse abgeschlossen. ${filteredUpdates.length} relevante Updates geladen.`);
 
       setEmailUpdates(filteredUpdates);
       setIsInboxScanned(true);
       triggerToast("success", `${filteredUpdates.length} Updates gefunden.`);
       await new Promise((resolve) => setTimeout(resolve, 1200));
-      setIsScanning(false);
+      stopAITask();
     } catch (err: any) {
       if (progressInterval) clearInterval(progressInterval);
-      setSyncProgress(0);
-      setSyncPhase("Fehler bei der Synchronisierung");
-      setSyncDetails(err.message || "Fehler beim E-Mail Scan.");
+      updateAITask(0, "Fehler bei der Synchronisierung", err.message || "Fehler beim E-Mail Scan.");
       triggerToast("error", err.message || "Fehler beim Scan.");
       await new Promise((resolve) => setTimeout(resolve, 3000));
-      setIsScanning(false);
+      stopAITask();
     }
   };
 

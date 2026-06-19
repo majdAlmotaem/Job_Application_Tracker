@@ -15,9 +15,17 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { useSavedSearches } from "./hooks/useSavedSearches";
 import { useJobApplications } from "./hooks/useJobApplications";
 import { JobApplication } from "./types";
-
+import { GlobalTaskProvider, useGlobalTask } from "./context/GlobalTaskContext";
 
 export default function App() {
+  return (
+    <GlobalTaskProvider>
+      <AppContent />
+    </GlobalTaskProvider>
+  );
+}
+
+export function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(false);
@@ -295,6 +303,7 @@ export default function App() {
         />
 
         <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto h-full">
+
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route

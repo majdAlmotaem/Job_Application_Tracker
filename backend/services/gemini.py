@@ -4,14 +4,39 @@ import asyncio
 import logging
 import httpx
 from typing import List, Dict, Any
+from tenacity import retry, wait_random_exponential, stop_after_attempt, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
 
+class Gemini503Error(Exception):
+    """Exception raised when the Gemini API returns a 503 Service Unavailable error."""
+    pass
+
+@retry(
+    wait=wait_random_exponential(multiplier=2, min=3, max=60),
+    stop=stop_after_attempt(10),
+    retry=retry_if_exception_type(Gemini503Error),
+    reraise=True
+)
+async def _execute_gemini_request(client: httpx.AsyncClient, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        response = await client.post(url, json=payload)
+    except httpx.RequestError as e:
+        logger.error(f"Network error calling Gemini API: {e}")
+        raise e
+
+    if response.status_code == 553 or response.status_code == 503:
+        logger.warning("Gemini API error (status 503). Retrying via Tenacity...")
+        raise Gemini503Error("Gemini API returned server error status 503")
+
+    response.raise_for_status()
+    return response.json()
+
 async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, delay_ms: int = 2000, model: str = "gemini-3.5-flash") -> Dict[str, Any]:
     """
-    Executes a Gemini API request with exponential backoff for rate limits (429) or server errors (503).
+    Executes a Gemini API request with exponential backoff via tenacity for server errors (503).
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -20,73 +45,31 @@ async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, dela
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     
     async with httpx.AsyncClient(timeout=120.0) as client:
-        for i in range(retries):
-            try:
-                response = await client.post(url, json=payload)
+        try:
+            response_data = await _execute_gemini_request(client, url, payload)
+            
+            # Token Verbrauch extrahieren und loggen
+            usage = response_data.get("usageMetadata")
+            if usage:
+                in_tokens = usage.get("promptTokenCount", 0)
+                out_tokens = usage.get("candidatesTokenCount", 0)
+                total = usage.get("totalTokenCount", 0)
+                logger.info(f"📊 Gemini Tokens -> Input: {in_tokens} | Output: {out_tokens} | Total: {total}")
                 
-                # Check for rate limits or server errors
-                if response.status_code in [429, 503]:
-                    status = response.status_code
-                    msg = response.text.lower()
-                    
-                    if i == retries - 1:
-                        if status == 429:
-                            raise Exception("Gemini API rate limit exceeded. Please try again in a minute.")
-                        else:
-                            raise Exception(f"Gemini API returned server error status {status} after retries.")
-                            
-                    next_delay = (delay_ms * (2 ** i)) / 1000.0  # Convert to seconds
-                    
-                    # Try to parse wait time from 429 response if present
-                    if status == 429:
-                        try:
-                            err_data = response.json()
-                            err_msg = err_data.get("error", {}).get("message", "")
-                            # Parse "Please retry in X seconds"
-                            import re
-                            match = re.search(r"Please retry in ([\d.]+)s", err_msg, re.IGNORECASE)
-                            if match:
-                                next_delay = float(match.group(1)) + 1.0
-                        except Exception:
-                            pass
-                    
-                    logger.warning(
-                        f"Gemini API error (status {status}, attempt {i + 1}/{retries}). "
-                        f"Retrying in {next_delay:.2f}s..."
-                    )
-                    await asyncio.sleep(next_delay)
-                    continue
-                
-                response.raise_for_status()
-                response_data = response.json()
-                
-                # Token Verbrauch extrahieren und loggen
-                usage = response_data.get("usageMetadata")
-                if usage:
-                    in_tokens = usage.get("promptTokenCount", 0)
-                    out_tokens = usage.get("candidatesTokenCount", 0)
-                    total = usage.get("totalTokenCount", 0)
-                    logger.info(f"📊 Gemini Tokens -> Input: {in_tokens} | Output: {out_tokens} | Total: {total}")
-                    
-                return response_data
+            return response_data
 
-            except httpx.TimeoutException as e:
-                logger.error(f"Gemini API timeout occurred on attempt {i + 1}/{retries}: {e}")
-                # We raise immediately on timeouts to avoid long retry loops
-                raise e
-            except httpx.HTTPStatusError as e:
-                # Non-retryable HTTP errors
-                logger.error(f"Non-retryable HTTP error occurred: {e.response.status_code} - {e.response.text}")
-                raise e
-            except Exception as e:
-                logger.error("Error calling Gemini API", exc_info=True)
-                if i == retries - 1:
-                    raise e
-                
-                next_delay = (delay_ms * (2 ** i)) / 1000.0
-                await asyncio.sleep(next_delay)
-                
-        raise Exception("Gemini API call failed after retries")
+        except httpx.TimeoutException as e:
+            logger.error(f"Gemini API timeout occurred: {e}")
+            raise e
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Non-retryable HTTP error occurred: {e.response.status_code} - {e.response.text}")
+            raise e
+        except Gemini503Error as e:
+            raise Exception("Gemini API returned server error status 503 after retries.") from e
+        except Exception as e:
+            logger.error("Error calling Gemini API", exc_info=True)
+            raise e
+
 
 async def analyze_emails(emails: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
