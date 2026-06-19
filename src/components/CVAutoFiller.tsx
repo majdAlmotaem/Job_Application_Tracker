@@ -24,6 +24,7 @@ export const CVAutoFiller: React.FC<CVAutoFillerProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const isFirstRender = useRef(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState(0);
   const [loadingPhase, setLoadingPhase] = useState("PDF-Text extrahieren...");
@@ -34,6 +35,11 @@ export const CVAutoFiller: React.FC<CVAutoFillerProps> = ({
   } = useGlobalTask();
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     let intervalId: any;
     if (status === "loading") {
       setProgress(0);
@@ -75,7 +81,7 @@ export const CVAutoFiller: React.FC<CVAutoFillerProps> = ({
       if (status === "error") {
         updateAITask(0, "Fehler bei der Analyse", "Der Lebenslauf konnte nicht ausgewertet werden.");
         setTimeout(() => stopAITask(), 3000);
-      } else {
+      } else if (status !== "idle") {
         stopAITask();
       }
     }

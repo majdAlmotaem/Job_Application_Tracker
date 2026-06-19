@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { EmailUpdate } from "../types";
+import { EmailUpdate, JobSearchResultItem, JobSearchCriteria } from "../types";
 
 interface GlobalTaskContextType {
   // Email Sync States
@@ -20,6 +20,16 @@ interface GlobalTaskContextType {
   updateJobSearch: (progress: number, phase: string, details: string) => void;
   stopJobSearch: () => void;
   
+  jobSearchResults: JobSearchResultItem[];
+  setJobSearchResults: React.Dispatch<React.SetStateAction<JobSearchResultItem[]>>;
+  jobSearchError: string | null;
+  setJobSearchError: (error: string | null) => void;
+  startBackgroundJobSearch: (
+    criteria: JobSearchCriteria,
+    activeSearchId: number | null,
+    saveSearchToActiveTab?: (criteria: any, results: any[]) => Promise<any>
+  ) => Promise<void>;
+
   // Hoisted Gmail Sync States
   isInboxScanned: boolean;
   setIsInboxScanned: (scanned: boolean) => void;
@@ -42,6 +52,9 @@ export const GlobalTaskProvider: React.FC<{ children: ReactNode }> = ({ children
   const [jobSearchPhase, setJobSearchPhase] = useState("");
   const [jobSearchDetails, setJobSearchDetails] = useState("");
   
+  const [jobSearchResults, setJobSearchResults] = useState<JobSearchResultItem[]>([]);
+  const [jobSearchError, setJobSearchError] = useState<string | null>(null);
+
   // Hoisted Gmail Sync States
   const [isInboxScanned, setIsInboxScanned] = useState<boolean>(false);
   const [emailUpdates, setEmailUpdates] = useState<EmailUpdate[]>([]);
@@ -80,6 +93,85 @@ export const GlobalTaskProvider: React.FC<{ children: ReactNode }> = ({ children
     setIsJobSearchRunning(false);
   };
 
+  const startBackgroundJobSearch = async (
+    criteria: JobSearchCriteria,
+    activeSearchId: number | null,
+    saveSearchToActiveTab?: (criteria: any, results: any[]) => Promise<any>
+  ) => {
+    if (isJobSearchRunning) return;
+
+    setJobSearchError(null);
+    setJobSearchResults([]);
+    startJobSearch("Suchanfrage wird formatiert...", "Kriterien werden analysiert");
+
+    let currentProgress = 5;
+    const interval = setInterval(() => {
+      currentProgress += Math.floor(Math.random() * 8) + 2;
+      if (currentProgress >= 95) {
+        currentProgress = 95;
+        updateJobSearch(95, "Stellenanzeigen werden extrahiert...", "Die passendsten Angebote werden ausgewählt");
+      } else {
+        let phaseStr = "Job-Suche läuft...";
+        let detailsStr = "";
+        if (currentProgress > 75) {
+          phaseStr = "Stellenanzeigen werden extrahiert...";
+          detailsStr = "Die passendsten Angebote werden ausgewählt";
+        } else if (currentProgress > 50) {
+          phaseStr = "Live-Websuche läuft...";
+          detailsStr = "Google-Suchergebnisse werden analysiert";
+        } else if (currentProgress > 25) {
+          phaseStr = "Suchkriterien werden verarbeitet...";
+          detailsStr = "Gemini initiiert die Google-Suche";
+        } else {
+          phaseStr = "Suchanfrage wird formatiert...";
+          detailsStr = "Kriterien werden analysiert";
+        }
+        updateJobSearch(currentProgress, phaseStr, detailsStr);
+      }
+    }, 500);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes timeout
+
+    try {
+      const response = await fetch("/api/jobs/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(criteria),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      clearInterval(interval);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Die Jobsuche ist fehlgeschlagen.");
+      }
+
+      const data = await response.json();
+      const results = data.results || [];
+      setJobSearchResults(results);
+
+      if (activeSearchId !== null && saveSearchToActiveTab) {
+        await saveSearchToActiveTab(criteria, results);
+      }
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      clearInterval(interval);
+      console.error("Fehler bei der Jobsuche im Hintergrund:", err);
+      if (err.name === "AbortError") {
+        setJobSearchError("Zeitüberschreitung bei der Jobsuche (Limit: 10 Min.).");
+      } else {
+        setJobSearchError(err.message || "Ein unerwarteter Fehler ist aufgetreten.");
+      }
+    } finally {
+      stopJobSearch();
+    }
+  };
+
   return (
     <GlobalTaskContext.Provider
       value={{
@@ -97,6 +189,11 @@ export const GlobalTaskProvider: React.FC<{ children: ReactNode }> = ({ children
         startJobSearch,
         updateJobSearch,
         stopJobSearch,
+        jobSearchResults,
+        setJobSearchResults,
+        jobSearchError,
+        setJobSearchError,
+        startBackgroundJobSearch,
         isInboxScanned,
         setIsInboxScanned,
         emailUpdates,

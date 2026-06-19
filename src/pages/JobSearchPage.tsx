@@ -94,7 +94,7 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
 
   // Sync active tab state with local formValues and searchResults
   useEffect(() => {
-    if (activeTab) {
+    if (activeTab && !isSearching) {
       setFormValues({
         job_title: activeTab.criteria.job_title || "",
         location: activeTab.criteria.location || "",
@@ -103,7 +103,7 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
       });
       setSearchResults(activeTab.results || []);
     }
-  }, [activeSearchId, activeTab, setSearchResults]);
+  }, [activeSearchId, activeTab, isSearching, setSearchResults]);
 
   // Collapse form automatically if the active tab has saved results
   useEffect(() => {
@@ -159,10 +159,7 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
   };
 
   const handleFormSubmit = async (values: JobSearchCriteria) => {
-    const results = await executeJobSearch(values);
-    if (results && activeSearchId !== null) {
-      await saveSearchToActiveTab(values, results);
-    }
+    await executeJobSearch(values, activeSearchId, saveSearchToActiveTab);
   };
 
   const handleJobSaved = async (jobUrl: string) => {
@@ -392,14 +389,16 @@ export const JobSearchPage: React.FC<JobSearchPageProps> = ({
         </div>
       )}
 
-      <JobSearchResults
-        results={searchResults}
-        isSearching={isSearching}
-        availableTables={availableTables}
-        triggerToast={triggerToast}
-        onJobSaved={handleJobSaved}
-        onJobUnsaved={handleJobUnsaved}
-      />
+      {!isSearching && searchResults.length > 0 && (
+        <JobSearchResults
+          results={searchResults}
+          isSearching={isSearching}
+          availableTables={availableTables}
+          triggerToast={triggerToast}
+          onJobSaved={handleJobSaved}
+          onJobUnsaved={handleJobUnsaved}
+        />
+      )}
 
       {/* Rename Modal for Search Tabs */}
       <RenameModal

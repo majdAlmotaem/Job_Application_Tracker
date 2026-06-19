@@ -74,3 +74,20 @@ export interface InterviewReminder {
   date: string;
   tableName: string;
 }
+
+export interface JobSearchResultItem {
+  company: string;
+  job_title: string;
+  location: string;
+  url: string;
+  match_reason: string;
+  is_saved?: boolean;
+}
+
+export interface JobSearchCriteria {
+  job_title: string;
+  location: string;
+  employment_type: string;
+  keywords: string[];
+  date_posted: string;
+}

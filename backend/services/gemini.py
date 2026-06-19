@@ -16,13 +16,13 @@ class Gemini503Error(Exception):
 
 @retry(
     wait=wait_random_exponential(multiplier=2, min=3, max=60),
-    stop=stop_after_attempt(10),
-    retry=retry_if_exception_type((Gemini503Error, httpx.TimeoutException)),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type(Gemini503Error),
     reraise=True
 )
 async def _execute_gemini_request(client: httpx.AsyncClient, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        response = await client.post(url, json=payload, timeout=httpx.Timeout(30.0))
+        response = await client.post(url, json=payload, timeout=httpx.Timeout(90.0))
     except httpx.RequestError as e:
         logger.error(f"Network error calling Gemini API: {e}")
         raise e
@@ -44,7 +44,7 @@ async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, dela
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(90.0)) as client:
         try:
             response_data = await _execute_gemini_request(client, url, payload)
             
@@ -300,19 +300,18 @@ async def search_live_jobs(criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
     Performs a live web search for job postings matching the criteria using Gemini 3.5 Flash and Google Search tool.
     Returns a list of matching job results.
     """
-    logger.info(f"Starting live job search with criteria: {criteria}")
+    job_title = criteria.get("job_title", "")
+    location = criteria.get("location", "")
+    employment_type = criteria.get("employment_type", "")
+
+    logger.info(f"Starting live job search. Core criteria: Job={job_title}, Location={location}, Type={employment_type}")
     
-    prompt = f"""
-    Du bist ein spezialisierter Recruiter. Führe eine präzise Live-Websuche nach aktuellen Stellenanzeigen durch, die exakt zu diesen Kriterien passen: {criteria}. 
-    
-    WICHTIGE SUCH-REGELN:
-    1. Durchsuche fokussiert Premium-Jobportale (z.B. site:linkedin.com/jobs, site:stepstone.de, site:de.indeed.com, site:xing.com) oder direkte Karriereseiten von Unternehmen.
-    2. Ignoriere generische Spam-Jobbörsen (Aggregatoren), die nur auf andere Portale weiterleiten.
-    3. Die URL MUSS ein direkter, funktionierender Link zur Original-Stellenanzeige sein.
-    
-    Gib exakt maximal 10 hochrelevante Ergebnisse zurück. 
-    Begründe in 'match_reason' in einem kurzen Satz auf Deutsch, warum der Job passt.
-    """
+    prompt = (
+        f"Führe eine Websuche nach aktuellen Stellenanzeigen durch für: "
+        f"Jobtitel: '{job_title}', Ort: '{location}', Arbeitsmodell: '{employment_type}'. "
+        f"Gib maximal 10 Ergebnisse zurück. Die URL muss ein direkter Link zur Originalanzeige sein. "
+        f"Begründe kurz auf Deutsch in 'match_reason'."
+    )
     
     schema = {
         "type": "ARRAY",
