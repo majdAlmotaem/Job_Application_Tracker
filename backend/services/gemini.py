@@ -22,7 +22,7 @@ class Gemini503Error(Exception):
 )
 async def _execute_gemini_request(client: httpx.AsyncClient, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        response = await client.post(url, json=payload, timeout=httpx.Timeout(90.0))
+        response = await client.post(url, json=payload, timeout=httpx.Timeout(300.0))
     except httpx.RequestError as e:
         logger.error(f"Network error calling Gemini API: {e}")
         raise e
@@ -44,7 +44,7 @@ async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, dela
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     
-    async with httpx.AsyncClient(timeout=httpx.Timeout(90.0)) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
         try:
             response_data = await _execute_gemini_request(client, url, payload)
             
