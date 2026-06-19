@@ -17,12 +17,12 @@ class Gemini503Error(Exception):
 @retry(
     wait=wait_random_exponential(multiplier=2, min=3, max=60),
     stop=stop_after_attempt(10),
-    retry=retry_if_exception_type(Gemini503Error),
+    retry=retry_if_exception_type((Gemini503Error, httpx.TimeoutException)),
     reraise=True
 )
 async def _execute_gemini_request(client: httpx.AsyncClient, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        response = await client.post(url, json=payload)
+        response = await client.post(url, json=payload, timeout=httpx.Timeout(30.0))
     except httpx.RequestError as e:
         logger.error(f"Network error calling Gemini API: {e}")
         raise e

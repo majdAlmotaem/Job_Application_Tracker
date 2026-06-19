@@ -30,14 +30,16 @@ In der Funktion `analyze_emails` in `backend/services/gemini.py` wurde ein Batch
 - **Prompt-Generierung**: Für jeden Block wird separat ein strukturierter Prompt und das passende JSON-Schema aufgebaut und an Gemini geschickt.
 - **Ergebnis-Aggregation**: Die vom JSON-Parser gelieferten Listen der einzelnen Chunks werden am Ende zu einer einzigen, flachen Liste vereint und an das Frontend zurückgegeben.
 
-### C. Globaler Task-Context & Router-unabhängiger Ladebalken (React)
-Da der Ladebalken beim Wechseln der Seite (z. B. vom Tracker zum Dashboard) verschwand, obwohl der API-Call im Hintergrund noch lief, wurde die UI-Ebene globalisiert:
-- **GlobalTaskContext**: Ein React Context (`GlobalTaskProvider`), der den Ladevorgang (`isAITaskRunning`) und die Details (`syncProgress`, `syncPhase`, `syncDetails`) verwaltet.
-- **Oberstes Layout**: Der Ladebalken wird in [App.tsx](file:///C:/Users/PCUser/Documents/GitHub/Job_Application_Tracker/src/App.tsx) über den Routes gerendert und ist damit auf jeder Seite persistent sichtbar.
-- **Hook-Verbindung**: [useGmailSync.ts](file:///C:/Users/PCUser/Documents/GitHub/Job_Application_Tracker/src/hooks/useGmailSync.ts), [useJobSearch.ts](file:///C:/Users/PCUser/Documents/GitHub/Job_Application_Tracker/src/hooks/useJobSearch.ts) und [CVAutoFiller.tsx](file:///C:/Users/PCUser/Documents/GitHub/Job_Application_Tracker/src/components/CVAutoFiller.tsx) melden ihren Ladefortschritt an den globalen Context, wodurch Hintergrund-Tasks wie die E-Mail-Synchronisierung oder die Jobsuche auch nach dem Verlassen der ursprünglichen Seite sauber weiter visualisiert werden.
+### C. Hartes Client-Timeout (Vermeidung von Ghost-Anfragen)
+Um Ressourcenverschwendung auf Seiten von Google durch hängengebliebene Anfragen ("Ghost-Anfragen") zu vermeiden, wurde ein hartes Client-Timeout auf Verbindungsebene eingeführt:
+- **Aktives Schließen der Verbindung (TCP Disconnect)**: Jeder einzelne HTTP-Post-Request an die Gemini-Schnittstelle wird mit einem strikten Limit von `30.0` Sekunden begrenzt (`timeout=httpx.Timeout(30.0)`).
+- **Ressourcenfreigabe**: Antwortet die API nach 30 Sekunden nicht, schließt der Client die Verbindung aktiv. Dies signalisiert Google, die blockierte Anfrage aus der internen Warteschlange zu verwerfen, sodass keine unnötigen API-Gebühren anfallen.
+- **Retry-Abhängigkeit**: Das erzwungene Timeout wirft eine `httpx.TimeoutException`. Die umgebende Tenacity-Logik fängt diese Exception ab und führt den Request mit exponentiellem Backoff im nächsten Versuch aus.
 
 ---
 
-## 3. Timeout-Optimierung
-- **Backend**: Das HTTPX-Timeout für die Kommunikation mit der Gemini API ist auf `120.0 Sekunden` in `call_gemini_with_retry` hochgesetzt, um insbesondere bei komplexen Live-Jobsuchen mit Google Search Grounding Zeitüberschreitungen zu verhindern.
-- **Frontend**: Die Timeouts und das Abort-Limit wurden auf `90 bzw. 120 Sekunden` angehoben.
+## 3. Timeout-Konfiguration
+- **Gesamtes Session-Timeout (Backend)**: Der `httpx.AsyncClient` ist für die gesamte Sitzung mit einem Limit von `120.0` Sekunden konfiguriert (erforderlich für Live-Jobsuchen mit aufwändigem Google Search Grounding).
+- **Einzelner Request (Backend)**: Jede einzelne Anfrage bricht nach `30.0` Sekunden hart ab (TCP Disconnect), um Ghost-Anfragen zu unterbinden, und wird per Tenacity wiederholt (bis zu 10 Versuche).
+- **Frontend (Gmail Sync)**: Das API-Aufruf-Timeout für die E-Mail-Synchronisierung `/api/analyze-emails` wurde mittels `AbortController` auf `10 Minuten` (`600 Sekunden`) angehoben, da die serverseitige Retry-Logik bei wiederholten Gemini-API-Fehlern (HTTP 503) bis zu 5 Minuten beanspruchen kann.
+- **Frontend (Andere)**: Die Timeout-Grenzen für andere API-Aufrufe (wie z. B. CV-Extraktion) liegen bei `90` Sekunden.

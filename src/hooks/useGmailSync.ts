@@ -129,11 +129,25 @@ export const useGmailSync = ({
         }
       }, intervalMs);
 
-      const response = await fetch("/api/analyze-emails", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emails: messages }),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes timeout
+
+      let response: Response;
+      try {
+        response = await fetch("/api/analyze-emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emails: messages }),
+          signal: controller.signal,
+        });
+      } catch (fetchErr: any) {
+        if (fetchErr.name === "AbortError") {
+          throw new Error("Zeitüberschreitung bei der E-Mail-Analyse (Limit: 10 Min.).");
+        }
+        throw fetchErr;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       clearInterval(progressInterval);
 
