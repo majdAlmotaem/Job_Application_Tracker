@@ -13,28 +13,34 @@ Dies führte regelmäßig zu:
 
 ---
 
-## 2. Technische Lösung
+## 2. Technische Lösung und Modularisierung
 
-Die Optimierung wurde auf vier Ebenen umgesetzt:
+Die Optimierung und Architektur wurde in einem strukturierten Package unter [backend/services/gemini/](file:///c:/Users/PCUser/Documents/GitHub/Job_Application_Tracker/backend/services/gemini/) umgesetzt, aufgeteilt in folgende Module:
 
-### A. Robuste Retry-Logik mit Tenacity (Exponential Backoff)
-In `backend/services/gemini.py` wurde die Funktion `call_gemini_with_retry` auf die professionelle Python-Bibliothek `tenacity` umgestellt:
-- **Exponentieller Random-Backoff**: Verwendet `@retry` mit `wait_random_exponential(min=1, max=60)` für eine schrittweise Erhöhung der Wartezeit zwischen den Anfragen (mindestens 1 Sekunde, höchstens 60 Sekunden), um dem API-Server Erholungsphasen zu geben.
-- **Maximale Versuche**: Begrenzt auf `5` Versuche (`stop_after_attempt(5)`).
-- **Fehlerspezifisches Retrying**: Es wird eine benutzerdefinierte Exception `Gemini503Error` geworfen und im Decorator mittels `retry_if_exception_type(Gemini503Error)` abgefangen. Dadurch wird die Retry-Logik **ausschließlich** bei echten Serverüberlastungen (HTTP 503) getriggert. Code-Fehler (wie z. B. HTTP 400 Bad Request oder HTTP 401 Unauthorized) scheitern sofort ohne wiederholte Anfragen.
+### A. Basis-Client & Retry-Logik (client.py)
+In [client.py](file:///c:/Users/PCUser/Documents/GitHub/Job_Application_Tracker/backend/services/gemini/client.py) wurde die zentrale Logik zur Kommunikation mit der Gemini API ausgelagert:
+- **Tenacity (Exponential Backoff)**: Die Funktion `call_gemini_with_retry` verwendet die `@retry`-Bibliothek mit `wait_random_exponential(multiplier=2, min=3, max=60)` für eine schrittweise Erhöhung der Wartezeit zwischen den Anfragen (mindestens 3 Sekunden, höchstens 60 Sekunden), um dem API-Server Erholungsphasen zu geben.
+- **Maximale Versuche**: Begrenzt auf `3` Versuche (`stop_after_attempt(3)`).
+- **Fehlerspezifisches Retrying**: Es wird eine benutzerdefinierte Exception `Gemini503Error` geworfen und im Decorator mittels `retry_if_exception_type(Gemini503Error)` abgefangen. Dadurch wird die Retry-Logik **ausschließlich** bei echten Serverüberlastungen (HTTP 503) getriggert.
+- **Hartes Client-Timeout**: Jeder einzelne HTTP-Post-Request an die Gemini-Schnittstelle wird mit einem Limit von `300.0` Sekunden begrenzt (`timeout=httpx.Timeout(300.0)`).
 
-### B. Batch-Processing (Chunking) der E-Mails
-In der Funktion `analyze_emails` in `backend/services/gemini.py` wurde ein Batch-Verfahren implementiert:
+### B. Batch-Processing & E-Mail-Analyse (email_analyzer.py)
+In [email_analyzer.py](file:///c:/Users/PCUser/Documents/GitHub/Job_Application_Tracker/backend/services/gemini/email_analyzer.py) wurde das Batch-Verfahren zur E-Mail-Synchronisierung implementiert:
 - **Chunk-Größe**: Die Liste der empfangenen E-Mails wird in Blöcke von **maximal 5 E-Mails** unterteilt.
-- **Asynchrone Iteration**: Die Chunks werden nacheinander asynchron verarbeitet.
-- **Prompt-Generierung**: Für jeden Block wird separat ein strukturierter Prompt und das passende JSON-Schema aufgebaut und an Gemini geschickt.
-- **Ergebnis-Aggregation**: Die vom JSON-Parser gelieferten Listen der einzelnen Chunks werden am Ende zu einer einzigen, flachen Liste vereint und an das Frontend zurückgegeben.
+- **Asynchrone Iteration**: Chunks werden nacheinander asynchron verarbeitet, um den API-Server nicht zu überlasten.
+- **Ergebnis-Aggregation**: Die vom JSON-Parser gelieferten Listen der einzelnen Chunks werden am Ende zu einer einzigen Liste vereint.
 
-### C. Hartes Client-Timeout (Vermeidung von Ghost-Anfragen)
-Um Ressourcenverschwendung auf Seiten von Google durch hängengebliebene Anfragen ("Ghost-Anfragen") zu vermeiden, wurde ein hartes Client-Timeout auf Verbindungsebene eingeführt:
-- **Aktives Schließen der Verbindung (TCP Disconnect)**: Jeder einzelne HTTP-Post-Request an die Gemini-Schnittstelle wird mit einem strikten Limit von `30.0` Sekunden begrenzt (`timeout=httpx.Timeout(30.0)`).
-- **Ressourcenfreigabe**: Antwortet die API nach 30 Sekunden nicht, schließt der Client die Verbindung aktiv. Dies signalisiert Google, die blockierte Anfrage aus der internen Warteschlange zu verwerfen, sodass keine unnötigen API-Gebühren anfallen.
-- **Retry-Abhängigkeit**: Das erzwungene Timeout wirft eine `httpx.TimeoutException`. Die umgebende Tenacity-Logik fängt diese Exception ab und führt den Request mit exponentiellem Backoff im nächsten Versuch aus.
+### C. Live-Jobsuche & Matching (job_matcher.py)
+In [job_matcher.py](file:///c:/Users/PCUser/Documents/GitHub/Job_Application_Tracker/backend/services/gemini/job_matcher.py) befindet sich die Logik für Websuchen:
+- **Google Search Integration**: Verwendet das Google Search Tool von Gemini, um aktuelle Stellenausschreibungen live im Web zu finden und passende Matches inklusive Original-Links und Match-Begründungen zurückzugeben.
+
+### D. CV-Extraktion & Autofill (cv_generator.py)
+In [cv_generator.py](file:///c:/Users/PCUser/Documents/GitHub/Job_Application_Tracker/backend/services/gemini/cv_generator.py) liegt die CV-Parser-Logik:
+- **Autofill-Logik**: Analysiert rohen Lebenslauftext und extrahiert strukturierte Daten wie angestrebte Jobtitel, bevorzugte Standorte, Anstellungsarten und bis zu 10 Schlüsselkompetenzen in ein sauberes JSON-Schema.
+
+### E. Transparente Schnittstelle (__init__.py)
+Die Datei [__init__.py](file:///c:/Users/PCUser/Documents/GitHub/Job_Application_Tracker/backend/services/gemini/__init__.py) exportiert die Kernfunktionen (`analyze_emails`, `search_live_jobs`, `extract_cv_info`), damit andere Komponenten der Anwendung (wie Router) die Module importieren können, ohne von der internen Ordnerstruktur wissen zu müssen.
+
 
 ---
 
