@@ -45,7 +45,7 @@ Die Datei [__init__.py](file:///c:/Users/PCUser/Documents/GitHub/Job_Application
 ---
 
 ## 3. Timeout-Konfiguration
-- **Gesamtes Session-Timeout (Backend)**: Der `httpx.AsyncClient` ist für die gesamte Sitzung mit einem Limit von `120.0` Sekunden konfiguriert (erforderlich für Live-Jobsuchen mit aufwändigem Google Search Grounding).
-- **Einzelner Request (Backend)**: Jede einzelne Anfrage bricht nach `30.0` Sekunden hart ab (TCP Disconnect), um Ghost-Anfragen zu unterbinden, und wird per Tenacity wiederholt (bis zu 10 Versuche).
-- **Frontend (Gmail Sync)**: Das API-Aufruf-Timeout für die E-Mail-Synchronisierung `/api/analyze-emails` wurde mittels `AbortController` auf `10 Minuten` (`600 Sekunden`) angehoben, da die serverseitige Retry-Logik bei wiederholten Gemini-API-Fehlern (HTTP 503) bis zu 5 Minuten beanspruchen kann.
+- **Gesamtes Session-Timeout (Backend)**: Der `httpx.AsyncClient` ist für die gesamte Sitzung mit einem Limit von `300.0` Sekunden konfiguriert (erforderlich für Live-Jobsuchen mit aufwändigem Google Search Grounding).
+- **Einzelner Request (Backend)**: Jede einzelne Anfrage bricht nach `300.0` Sekunden hart ab, um Ghost-Anfragen zu unterbinden, und wird per Tenacity wiederholt (bis zu 3 Versuche).
+- **Frontend (Gmail Sync)**: Das API-Aufruf-Timeout für die E-Mail-Synchronisierung `/api/analyze-emails` wurde mittels `AbortController` auf `10 Minuten` (`600 Sekunden`) angehoben, da die serverseitige Retry-Logik bei wiederholten Gemini-API-Fehlern (HTTP 503) einige Zeit beanspruchen kann.
 - **Frontend (Andere)**: Die Timeout-Grenzen für andere API-Aufrufe (wie z. B. CV-Extraktion) liegen bei `90` Sekunden.
