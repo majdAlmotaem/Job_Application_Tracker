@@ -49,8 +49,34 @@ export const useGmailSync = ({
   const [syncingEmailId, setSyncingEmailId] = useState<string | null>(null);
   
   // UI states for expanding elements
-  const [isNeueExpanded, setIsNeueExpanded] = useState<boolean>(true);
-  const [isStatusExpanded, setIsStatusExpanded] = useState<boolean>(true);
+  const [isNeueExpandedState, setIsNeueExpandedState] = useState<boolean>(() => {
+    const saved = localStorage.getItem("syncsheet_neue_expanded");
+    return saved !== "false";
+  });
+  const [isStatusExpandedState, setIsStatusExpandedState] = useState<boolean>(() => {
+    const saved = localStorage.getItem("syncsheet_status_expanded");
+    return saved !== "false";
+  });
+
+  const setIsNeueExpanded = (valOrFn: boolean | ((prev: boolean) => boolean)) => {
+    setIsNeueExpandedState((prev) => {
+      const next = typeof valOrFn === "function" ? valOrFn(prev) : valOrFn;
+      localStorage.setItem("syncsheet_neue_expanded", String(next));
+      return next;
+    });
+  };
+
+  const setIsStatusExpanded = (valOrFn: boolean | ((prev: boolean) => boolean)) => {
+    setIsStatusExpandedState((prev) => {
+      const next = typeof valOrFn === "function" ? valOrFn(prev) : valOrFn;
+      localStorage.setItem("syncsheet_status_expanded", String(next));
+      return next;
+    });
+  };
+
+  const isNeueExpanded = isNeueExpandedState;
+  const isStatusExpanded = isStatusExpandedState;
+
   const [expandedEmailIds, setExpandedEmailIds] = useState<string[]>([]);
 
   const gmailQuery =

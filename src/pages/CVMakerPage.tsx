@@ -30,12 +30,22 @@ export const CVMakerPage: React.FC = () => {
   const skillsRef = useRef<HTMLDivElement>(null);
 
   // Accordion Section States
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    styling: true,
-    personal: false,
-    experience: false,
-    education: false,
-    skills: false,
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem("syncsheet_cvmaker_open_sections");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // Fallback
+      }
+    }
+    return {
+      styling: true,
+      personal: false,
+      experience: false,
+      education: false,
+      skills: false,
+    };
   });
 
   const [lastOpenedSection, setLastOpenedSection] = useState<string | null>(null);
@@ -46,10 +56,12 @@ export const CVMakerPage: React.FC = () => {
       if (nextState) {
         setLastOpenedSection(section);
       }
-      return {
+      const next = {
         ...prev,
         [section]: nextState,
       };
+      localStorage.setItem("syncsheet_cvmaker_open_sections", JSON.stringify(next));
+      return next;
     });
   };
 

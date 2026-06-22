@@ -63,13 +63,14 @@ export const JobSearchPage: React.FC = () => {
     syncDetails,
   } = useJobSearch();
 
-  // Dropdown & Modal States
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const [isFormCollapsed, setIsFormCollapsed] = useState(false);
-  
 
+  const [isFormCollapsed, setIsFormCollapsed] = useState(() => {
+    const saved = localStorage.getItem("syncsheet_jobsearch_collapsed");
+    return saved ? saved === "true" : false;
+  });
   
   const actionMenuRef = useRef<HTMLDivElement>(null);
 
@@ -90,12 +91,16 @@ export const JobSearchPage: React.FC = () => {
 
   // Collapse form automatically if the active tab has saved results
   useEffect(() => {
-    if (activeTab && activeTab.results && activeTab.results.length > 0) {
-      setIsFormCollapsed(true);
-    } else {
-      setIsFormCollapsed(false);
+    if (activeTab) {
+      const saved = localStorage.getItem(`syncsheet_jobsearch_collapsed_${activeSearchId}`);
+      if (saved !== null) {
+        setIsFormCollapsed(saved === "true");
+      } else {
+        const autoCollapse = !!(activeTab.results && activeTab.results.length > 0);
+        setIsFormCollapsed(autoCollapse);
+      }
     }
-  }, [activeSearchId]);
+  }, [activeSearchId, activeTab]);
 
   useEffect(() => {
     if (searchError) {
@@ -274,7 +279,14 @@ export const JobSearchPage: React.FC = () => {
       {/* Choice Layout Container */}
       <div className="professional-card p-6 lg:p-8 space-y-6 shadow-xl">
         <button
-          onClick={() => setIsFormCollapsed(!isFormCollapsed)}
+          onClick={() => {
+            const nextVal = !isFormCollapsed;
+            setIsFormCollapsed(nextVal);
+            localStorage.setItem("syncsheet_jobsearch_collapsed", String(nextVal));
+            if (activeSearchId !== null) {
+              localStorage.setItem(`syncsheet_jobsearch_collapsed_${activeSearchId}`, String(nextVal));
+            }
+          }}
           className="w-full flex items-center justify-between text-left focus:outline-none bg-transparent border-none p-0 cursor-pointer"
         >
           <div className="flex items-center gap-3">
