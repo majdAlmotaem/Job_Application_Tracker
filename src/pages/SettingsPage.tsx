@@ -2,25 +2,19 @@ import React, { useState, useRef } from "react";
 import { User } from "firebase/auth";
 import { Mail, RefreshCw, Cpu, LogOut, Check, Sparkles, Settings, ShieldCheck, Database, Download, Upload, AlertTriangle } from "lucide-react";
 
-interface SettingsPageProps {
-  user: User | null;
-  token: string | null;
-  isLoggingIn: boolean;
-  onLogin: () => void;
-  onLogout: () => void;
-  triggerToast: (type: "success" | "error", message: string) => void;
-}
+import { useGlobalTask } from "../context/GlobalTaskContext";
 
 type TabType = "connections" | "privacy" | "backup" | "system";
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({
-  user,
-  token,
-  isLoggingIn,
-  onLogin,
-  onLogout,
-  triggerToast,
-}) => {
+export const SettingsPage: React.FC = () => {
+  const {
+    user,
+    token,
+    isLoggingIn,
+    handleLogin: onLogin,
+    handleLogout: onLogout,
+    triggerToast,
+  } = useGlobalTask();
   const [activeTab, setActiveTab] = useState<TabType>("connections");
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);

@@ -8,23 +8,18 @@ import { ActiveRemindersList } from "../components/ActiveRemindersList";
 import { LastSearchResultsCard } from "../components/LastSearchResultsCard";
 import { SavedSearch } from "../hooks/useSavedSearches";
 
-interface DashboardPageProps {
-  applications?: JobApplication[];
-  dailyGoal?: number;
-  selectedTable?: string;
-  setApplications?: React.Dispatch<React.SetStateAction<JobApplication[]>>;
-  triggerToast?: (type: "success" | "error", message: string) => void;
-  savedTabs?: SavedSearch[];
-}
+import { useGlobalTask } from "../context/GlobalTaskContext";
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({
-  applications = [],
-  dailyGoal = 5,
-  selectedTable = "job_applications",
-  setApplications = () => {},
-  triggerToast = () => {},
-  savedTabs = [],
-}) => {
+export const DashboardPage: React.FC = () => {
+  const {
+    applications = [],
+    dailyGoal = 5,
+    selectedTable = "job_applications",
+    setApplications = () => {},
+    triggerToast = () => {},
+    savedTabs = [],
+  } = useGlobalTask();
+
   const todayStr = getLocalDateString();
   
   // 1. Calculate Daily Goal Progress (added today)

@@ -15,6 +15,8 @@ export interface UseJobApplicationsProps {
   }) => void;
   loadTables: () => Promise<void>;
   promotePendingTab: () => void;
+  applications: JobApplication[];
+  setApplications: React.Dispatch<React.SetStateAction<JobApplication[]>>;
 }
 
 export const useJobApplications = ({
@@ -24,8 +26,9 @@ export const useJobApplications = ({
   triggerConfirm,
   loadTables,
   promotePendingTab,
+  applications,
+  setApplications,
 }: UseJobApplicationsProps) => {
-  const [applications, setApplications] = useState<JobApplication[]>([]);
   const [isFetchingApps, setIsFetchingApps] = useState(false);
   const [draftChanges, setDraftChanges] = useState<Record<string, Partial<JobApplication>>>({});
   const [isSavingDrafts, setIsSavingDrafts] = useState(false);

@@ -1,5 +1,23 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
-import { EmailUpdate, JobSearchResultItem, JobSearchCriteria } from "../types";
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
+import { User } from "firebase/auth";
+import { EmailUpdate, JobSearchResultItem, JobSearchCriteria, JobApplication } from "../types";
+import { initAuth, googleSignIn, googleSignOut } from "../services/googleAuth";
+import { useSavedSearches, SavedSearch } from "../hooks/useSavedSearches";
+
+interface PendingTab {
+  key: string;
+  label: string;
+}
+
+interface ConfirmModalOptions {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmText: string;
+  cancelText: string;
+  type: "danger" | "warning" | "info";
+  onConfirm: () => void;
+}
 
 interface GlobalTaskContextType {
   // Email Sync States
@@ -35,6 +53,59 @@ interface GlobalTaskContextType {
   setIsInboxScanned: (scanned: boolean) => void;
   emailUpdates: EmailUpdate[];
   setEmailUpdates: React.Dispatch<React.SetStateAction<EmailUpdate[]>>;
+
+  // Google Authentication
+  user: User | null;
+  token: string | null;
+  needsAuth: boolean;
+  isLoggingIn: boolean;
+  handleLogin: () => Promise<void>;
+  handleLogout: () => Promise<void>;
+  googleSignInWrapper: () => Promise<any>;
+
+  // Table Configuration & Tabs
+  selectedTable: string;
+  setSelectedTable: React.Dispatch<React.SetStateAction<string>>;
+  availableTables: string[];
+  setAvailableTables: React.Dispatch<React.SetStateAction<string[]>>;
+  pendingTabs: PendingTab[];
+  setPendingTabs: React.Dispatch<React.SetStateAction<PendingTab[]>>;
+  loadTables: () => Promise<void>;
+  handleNewTab: () => void;
+  promotePendingTab: () => void;
+  isPendingTab: boolean;
+
+  // Daily Goal
+  dailyGoal: number;
+  setDailyGoal: React.Dispatch<React.SetStateAction<number>>;
+
+  // Modals & Notifications
+  confirmModal: ConfirmModalOptions;
+  setConfirmModal: React.Dispatch<React.SetStateAction<ConfirmModalOptions>>;
+  triggerConfirm: (options: {
+    title: string;
+    message: string;
+    confirmText: string;
+    cancelText?: string;
+    type?: "danger" | "warning" | "info";
+    onConfirm: () => void | Promise<void>;
+  }) => void;
+  notification: { type: "success" | "error"; message: string } | null;
+  triggerToast: (type: "success" | "error", message: string) => void;
+
+  // Saved Searches
+  savedTabs: SavedSearch[];
+  activeSearchId: number | null;
+  setActiveSearchId: (id: number | null) => void;
+  loadSavedSearches: () => Promise<any>;
+  createNewSearchTab: (name?: string) => Promise<any>;
+  saveSearchToActiveTab: (criteria: any, results: any[]) => Promise<any>;
+  deleteSearchTab: (id: number) => Promise<void>;
+  renameSearchTab: (id: number, newName: string) => Promise<any>;
+
+  // Hoisted Core Applications List
+  applications: JobApplication[];
+  setApplications: React.Dispatch<React.SetStateAction<JobApplication[]>>;
 }
 
 const GlobalTaskContext = createContext<GlobalTaskContextType | undefined>(undefined);
@@ -58,6 +129,203 @@ export const GlobalTaskProvider: React.FC<{ children: ReactNode }> = ({ children
   // Hoisted Gmail Sync States
   const [isInboxScanned, setIsInboxScanned] = useState<boolean>(false);
   const [emailUpdates, setEmailUpdates] = useState<EmailUpdate[]>([]);
+
+  // Auth States
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Table Configuration & Tabs
+  const [selectedTable, setSelectedTable] = useState<string>("");
+  const [availableTables, setAvailableTables] = useState<string[]>([]);
+  const [pendingTabs, setPendingTabs] = useState<PendingTab[]>([]);
+  const [dailyGoal, setDailyGoal] = useState<number>(() => {
+    const saved = localStorage.getItem("syncsheet_daily_goal");
+    return saved ? parseInt(saved, 10) : 5;
+  });
+
+  // Hoisted Applications State
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+
+  // Toast & Notifications
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalOptions>({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Bestätigen",
+    cancelText: "Abbrechen",
+    type: "info",
+    onConfirm: () => { },
+  });
+
+  const triggerToast = useCallback((type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+  }, []);
+
+  const triggerConfirm = useCallback((options: {
+    title: string;
+    message: string;
+    confirmText: string;
+    cancelText?: string;
+    type?: "danger" | "warning" | "info";
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmModal({
+      isOpen: true,
+      title: options.title,
+      message: options.message,
+      confirmText: options.confirmText,
+      cancelText: options.cancelText || "Abbrechen",
+      type: options.type || "info",
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        options.onConfirm();
+      },
+    });
+  }, []);
+
+  // Saved Searches Custom Hook
+  const {
+    savedTabs,
+    activeSearchId,
+    setActiveSearchId,
+    loadTabs: loadSavedSearches,
+    createNewTab: createNewSearchTab,
+    saveSearchToActiveTab,
+    deleteTab: deleteSearchTab,
+    renameTab: renameSearchTab,
+  } = useSavedSearches(triggerToast);
+
+  // Sync dailyGoal to localstorage
+  useEffect(() => {
+    localStorage.setItem("syncsheet_daily_goal", dailyGoal.toString());
+  }, [dailyGoal]);
+
+  // Load available tables from API
+  const loadTables = async () => {
+    try {
+      const response = await fetch("/api/applications/tables");
+      if (!response.ok) throw new Error("Failed to load tables");
+      const tables: string[] = await response.json();
+      
+      const customTables = tables.filter((t) => t !== "job_applications");
+      setAvailableTables(tables);
+      
+      setSelectedTable((prev) => {
+        if (customTables.length > 0) {
+          if (prev && prev !== "job_applications" && tables.includes(prev)) {
+            return prev;
+          }
+          return customTables[0];
+        }
+        return "";
+      });
+    } catch (err) {
+      console.error("Error loading tables:", err);
+      setAvailableTables([]);
+      setSelectedTable("");
+    }
+  };
+
+  useEffect(() => {
+    loadTables();
+    loadSavedSearches();
+    
+    // Auth init
+    const unsubscribe = initAuth(
+      (currentUser, accessToken) => {
+        setUser(currentUser);
+        setToken(accessToken);
+        setNeedsAuth(false);
+      },
+      () => {
+        setUser(null);
+        setToken(null);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // Dismiss notification toast after 5s
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Remove pending tab whose key now appears in availableTables
+  useEffect(() => {
+    setPendingTabs((prev) => prev.filter((pt) => !availableTables.includes(pt.key)));
+  }, [availableTables]);
+
+  const handleNewTab = () => {
+    const base = "neue_liste";
+    const taken = [...availableTables, ...pendingTabs.map((p) => p.key)];
+    let key = base;
+    let label = "Neue Liste";
+    let i = 2;
+    while (taken.includes(key)) {
+      key = `${base}_${i}`;
+      label = `Neue Liste ${i}`;
+      i++;
+    }
+    setPendingTabs((prev) => [...prev, { key, label }]);
+    setSelectedTable(key);
+  };
+
+  const isPendingTab = pendingTabs.some((pt) => pt.key === selectedTable);
+  const promotePendingTab = () => {
+    if (isPendingTab) {
+      setPendingTabs((prev) => prev.filter((pt) => pt.key !== selectedTable));
+    }
+  };
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      const authResult = await googleSignIn();
+      if (authResult) {
+        setToken(authResult.accessToken);
+        setUser(authResult.user);
+        triggerToast("success", "Erfolgreich mit Google verbunden.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      triggerToast("error", err.message || "Authentifizierung fehlgeschlagen.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await googleSignOut();
+      setToken(null);
+      setUser(null);
+      triggerToast("success", "Verbindung zu Google getrennt.");
+    } catch (err: any) {
+      console.error(err);
+      triggerToast("error", err.message || "Fehler beim Abmelden.");
+    }
+  };
+
+  const googleSignInWrapper = async () => {
+    try {
+      const authResult = await googleSignIn();
+      if (authResult) {
+        setToken(authResult.accessToken);
+        setUser(authResult.user);
+        return authResult;
+      }
+    } catch (err: any) {
+      console.error(err);
+      triggerToast("error", err.message || "Authentifizierung fehlgeschlagen.");
+    }
+    return null;
+  };
 
   const startEmailSync = (initialPhase = "Task gestartet...", initialDetails = "Bitte warten...") => {
     setIsEmailSyncRunning(true);
@@ -198,6 +466,40 @@ export const GlobalTaskProvider: React.FC<{ children: ReactNode }> = ({ children
         setIsInboxScanned,
         emailUpdates,
         setEmailUpdates,
+        user,
+        token,
+        needsAuth,
+        isLoggingIn,
+        handleLogin,
+        handleLogout,
+        googleSignInWrapper,
+        selectedTable,
+        setSelectedTable,
+        availableTables,
+        setAvailableTables,
+        pendingTabs,
+        setPendingTabs,
+        loadTables,
+        handleNewTab,
+        promotePendingTab,
+        isPendingTab,
+        dailyGoal,
+        setDailyGoal,
+        confirmModal,
+        setConfirmModal,
+        triggerConfirm,
+        notification,
+        triggerToast,
+        savedTabs,
+        activeSearchId,
+        setActiveSearchId,
+        loadSavedSearches,
+        createNewSearchTab,
+        saveSearchToActiveTab,
+        deleteSearchTab,
+        renameSearchTab,
+        applications,
+        setApplications,
       }}
     >
       {children}

@@ -1,9 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { User } from "firebase/auth";
-import { Mail, RefreshCw, AlertCircle } from "lucide-react";
+import { Mail, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { initAuth, googleSignIn, googleSignOut } from "./services/googleAuth";
 import { Sidebar } from "./components/Sidebar";
 import { HomePage } from "./pages/HomePage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -12,9 +10,6 @@ import { JobSearchPage } from "./pages/JobSearchPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { CVMakerPage } from "./pages/CVMakerPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { useSavedSearches } from "./hooks/useSavedSearches";
-import { useJobApplications } from "./hooks/useJobApplications";
-import { JobApplication } from "./types";
 import { GlobalTaskProvider, useGlobalTask } from "./context/GlobalTaskContext";
 
 export default function App() {
@@ -26,247 +21,26 @@ export default function App() {
 }
 
 export function AppContent() {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [needsAuth, setNeedsAuth] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
-  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
-
-  // Initialize with empty selected table and available tables to prevent automatic default table creation
-  const [selectedTable, setSelectedTable] = useState<string>("");
-  const [availableTables, setAvailableTables] = useState<string[]>([]);
-
-  // Pending tabs: tabs that exist in the UI but haven't been saved to the DB yet.
-  // Key = sanitized table name (e.g. "neue_liste_2"), label = user-facing display name
-  const [pendingTabs, setPendingTabs] = useState<{ key: string; label: string }[]>([]);
-
-  const [dailyGoal, setDailyGoal] = useState<number>(() => {
-    const saved = localStorage.getItem("syncsheet_daily_goal");
-    return saved ? parseInt(saved, 10) : 5;
-  });
-
-  useEffect(() => {
-    localStorage.setItem("syncsheet_daily_goal", dailyGoal.toString());
-  }, [dailyGoal]);
-
-
-
-  const loadTables = async () => {
-    try {
-      const response = await fetch("/api/applications/tables");
-      if (!response.ok) throw new Error("Failed to load tables");
-      const tables: string[] = await response.json();
-      
-      const customTables = tables.filter((t) => t !== "job_applications");
-      setAvailableTables(tables);
-      
-      setSelectedTable((prev) => {
-        if (customTables.length > 0) {
-          if (prev && prev !== "job_applications" && tables.includes(prev)) {
-            return prev;
-          }
-          return customTables[0];
-        }
-        return "";
-      });
-    } catch (err) {
-      console.error("Error loading tables:", err);
-      setAvailableTables([]);
-      setSelectedTable("");
-    }
-  };
-
-  useEffect(() => {
-    loadTables();
-  }, []);
-
-  // After loadTables, remove any pending tab whose key now appears in availableTables
-  useEffect(() => {
-    setPendingTabs((prev) => prev.filter((pt) => !availableTables.includes(pt.key)));
-  }, [availableTables]);
-
-  /** Creates a new pending tab (UI-only; no DB yet) */
-  const handleNewTab = () => {
-    const base = "neue_liste";
-    const taken = [...availableTables, ...pendingTabs.map((p) => p.key)];
-    let key = base;
-    let label = "Neue Liste";
-    let i = 2;
-    while (taken.includes(key)) {
-      key = `${base}_${i}`;
-      label = `Neue Liste ${i}`;
-      i++;
-    }
-    setPendingTabs((prev) => [...prev, { key, label }]);
-    setSelectedTable(key);
-  };
-
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    confirmText: string;
-    cancelText: string;
-    type: "danger" | "warning" | "info";
-    onConfirm: () => void;
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-    confirmText: "Bestätigen",
-    cancelText: "Abbrechen",
-    type: "info",
-    onConfirm: () => { },
-  });
-
-  useEffect(() => {
-    const unsubscribe = initAuth(
-      (currentUser, accessToken) => {
-        setUser(currentUser);
-        setToken(accessToken);
-        setNeedsAuth(false);
-      },
-      () => {
-        setUser(null);
-        setToken(null);
-      }
-    );
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.classList.add("dark");
-    localStorage.setItem("darkMode", "true");
-  }, []);
-
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => setNotification(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
-  const triggerToast = useCallback((type: "success" | "error", message: string) => {
-    setNotification({ type, message });
-  }, []);
 
   const {
+    needsAuth,
+    handleLogin,
+    availableTables,
+    pendingTabs,
+    selectedTable,
+    setSelectedTable,
+    handleNewTab,
     savedTabs,
     activeSearchId,
     setActiveSearchId,
-    loadTabs,
-    createNewTab,
-    saveSearchToActiveTab,
-    deleteTab,
-    renameTab,
-  } = useSavedSearches(triggerToast);
-
-  const triggerConfirm = (options: {
-    title: string;
-    message: string;
-    confirmText: string;
-    cancelText?: string;
-    type?: "danger" | "warning" | "info";
-    onConfirm: () => void | Promise<void>;
-  }) => {
-    setConfirmModal({
-      isOpen: true,
-      title: options.title,
-      message: options.message,
-      confirmText: options.confirmText,
-      cancelText: options.cancelText || "Abbrechen",
-      type: options.type || "info",
-      onConfirm: () => {
-        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-        options.onConfirm();
-      },
-    });
-  };
-
-  const isPendingTab = pendingTabs.some((pt) => pt.key === selectedTable);
-  const promotePendingTab = () => {
-    if (isPendingTab) {
-      setPendingTabs((prev) => prev.filter((pt) => pt.key !== selectedTable));
-    }
-  };
-
-  const {
-    applications,
-    isFetchingApps,
-    draftChanges,
-    isSavingDrafts,
-    selectedRowIds,
-    isSavingManual,
-    loadApplications,
-    handleUpdateStatusDraft,
-    updateDraftField,
-    handleSaveDraftChanges,
-    handleDiscardDraftChanges,
-    handleToggleRowSelect,
-    handleToggleSelectAll,
-    handleBulkDelete,
-    addManualApplication,
-    setApplications,
-  } = useJobApplications({
-    selectedTable,
-    isPendingTab,
-    triggerToast,
-    triggerConfirm,
-    loadTables,
-    promotePendingTab,
-  });
-
-  // Initialize tabs from database
-  useEffect(() => {
-    loadTabs();
-  }, []);
-
-
-  const handleLogin = async () => {
-    setIsLoggingIn(true);
-    try {
-      const authResult = await googleSignIn();
-      if (authResult) {
-        setToken(authResult.accessToken);
-        setUser(authResult.user);
-        triggerToast("success", "Erfolgreich mit Google verbunden.");
-      }
-    } catch (err: any) {
-      console.error(err);
-      triggerToast("error", err.message || "Authentifizierung fehlgeschlagen.");
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await googleSignOut();
-      setToken(null);
-      setUser(null);
-      triggerToast("success", "Verbindung zu Google getrennt.");
-    } catch (err: any) {
-      console.error(err);
-      triggerToast("error", err.message || "Fehler beim Abmelden.");
-    }
-  };
-
-
-  const handleGoogleSignInWrapper = async () => {
-    try {
-      const authResult = await googleSignIn();
-      if (authResult) {
-        setToken(authResult.accessToken);
-        setUser(authResult.user);
-        return authResult;
-      }
-    } catch (err: any) {
-      console.error(err);
-      triggerToast("error", err.message || "Authentifizierung fehlgeschlagen.");
-    }
-    return null;
-  };
+    createNewSearchTab: createNewTab,
+    deleteSearchTab: deleteTab,
+    renameSearchTab: renameTab,
+    confirmModal,
+    setConfirmModal,
+    notification,
+  } = useGlobalTask();
 
   if (needsAuth) {
     return (
@@ -277,7 +51,12 @@ export function AppContent() {
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">SyncSheet</h2>
           <p className="text-slate-400 text-sm mb-8">Bewerbungstracker für Gmail</p>
-          <button onClick={handleLogin} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition cursor-pointer">Google Anmelden</button>
+          <button
+            onClick={handleLogin}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition cursor-pointer border-none"
+          >
+            Google Anmelden
+          </button>
         </div>
       </div>
     );
@@ -302,95 +81,16 @@ export function AppContent() {
           renameTab={renameTab}
         />
 
-        <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto h-full">
-
+        <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto h-full animate-fadeIn">
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route
-              path="/dashboard"
-              element={
-                <DashboardPage
-                  applications={applications}
-                  dailyGoal={dailyGoal}
-                  selectedTable={selectedTable}
-                  setApplications={setApplications}
-                  triggerToast={triggerToast}
-                  savedTabs={savedTabs}
-                />
-              }
-            />
-            <Route
-              path="/tracker"
-              element={
-                <JobTrackerPage
-                  user={user}
-                  token={token}
-                  googleSignIn={handleGoogleSignInWrapper}
-                  triggerToast={triggerToast}
-                  triggerConfirm={triggerConfirm}
-                  selectedTable={selectedTable}
-                  setSelectedTable={setSelectedTable}
-                  availableTables={availableTables}
-                  pendingTabs={pendingTabs}
-                  setPendingTabs={setPendingTabs}
-                  loadTables={loadTables}
-                  onRequestNewTab={handleNewTab}
-                  dailyGoal={dailyGoal}
-                  setDailyGoal={setDailyGoal}
-                  applications={applications}
-                  isFetchingApps={isFetchingApps}
-                  draftChanges={draftChanges}
-                  isSavingDrafts={isSavingDrafts}
-                  selectedRowIds={selectedRowIds}
-                  isSavingManual={isSavingManual}
-                  loadApplications={loadApplications}
-                  handleUpdateStatusDraft={handleUpdateStatusDraft}
-                  updateDraftField={updateDraftField}
-                  handleSaveDraftChanges={handleSaveDraftChanges}
-                  handleDiscardDraftChanges={handleDiscardDraftChanges}
-                  handleToggleRowSelect={handleToggleRowSelect}
-                  handleToggleSelectAll={handleToggleSelectAll}
-                  handleBulkDelete={handleBulkDelete}
-                  addManualApplication={addManualApplication}
-                  setApplications={setApplications}
-                  promotePendingTab={promotePendingTab}
-                />
-              }
-            />
-            <Route
-              path="/search"
-              element={
-                <JobSearchPage
-                  availableTables={availableTables}
-                  triggerToast={triggerToast}
-                  triggerConfirm={triggerConfirm}
-                  savedTabs={savedTabs}
-                  activeSearchId={activeSearchId}
-                  setActiveSearchId={setActiveSearchId}
-                  createNewTab={createNewTab}
-                  deleteTab={deleteTab}
-                  renameTab={renameTab}
-                  saveSearchToActiveTab={saveSearchToActiveTab}
-                />
-              }
-            />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/tracker" element={<JobTrackerPage />} />
+            <Route path="/search" element={<JobSearchPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/cv-maker" element={<CVMakerPage />} />
-            <Route
-              path="/settings"
-              element={
-                <SettingsPage
-                  user={user}
-                  token={token}
-                  isLoggingIn={isLoggingIn}
-                  onLogin={handleLogin}
-                  onLogout={handleLogout}
-                  triggerToast={triggerToast}
-                />
-              }
-            />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
-
         </main>
 
         {/* Confirmation Modal */}
@@ -404,13 +104,15 @@ export function AppContent() {
                 className="bg-slate-900 border border-white/5 rounded-xl max-w-md w-full overflow-hidden shadow-2xl p-6 text-left"
               >
                 <div className="flex items-start gap-4">
-                  <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
-                    confirmModal.type === "danger"
-                      ? "bg-rose-500/10 text-rose-400"
-                      : confirmModal.type === "warning"
+                  <div
+                    className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
+                      confirmModal.type === "danger"
+                        ? "bg-rose-500/10 text-rose-400"
+                        : confirmModal.type === "warning"
                         ? "bg-amber-500/10 text-amber-400"
                         : "bg-blue-500/10 text-blue-400"
-                  }`}>
+                    }`}
+                  >
                     <AlertCircle className="h-5 w-5" />
                   </div>
                   <div className="flex-1 space-y-2">
@@ -434,8 +136,8 @@ export function AppContent() {
                       confirmModal.type === "danger"
                         ? "bg-rose-600 hover:bg-rose-700"
                         : confirmModal.type === "warning"
-                          ? "bg-amber-600 hover:bg-amber-700"
-                          : "bg-blue-600 hover:bg-blue-700"
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : "bg-blue-600 hover:bg-blue-700"
                     }`}
                   >
                     {confirmModal.confirmText}

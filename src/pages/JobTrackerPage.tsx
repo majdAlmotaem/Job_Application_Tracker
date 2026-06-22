@@ -29,94 +29,62 @@ import { EmailSyncResults } from "../components/EmailSyncResults";
 
 import { getLocalDateString } from "../utils/matchingLogic";
 
+import { useGlobalTask } from "../context/GlobalTaskContext";
+import { useJobApplications } from "../hooks/useJobApplications";
+
 interface PendingTab {
   key: string;
   label: string;
 }
 
-interface JobTrackerPageProps {
-  user: User | null;
-  token: string | null;
-  googleSignIn: () => Promise<any>;
-  triggerToast: (type: "success" | "error", message: string) => void;
-  triggerConfirm: (options: {
-    title: string;
-    message: string;
-    confirmText: string;
-    cancelText?: string;
-    type?: "danger" | "warning" | "info";
-    onConfirm: () => void | Promise<void>;
-  }) => void;
-  selectedTable: string;
-  setSelectedTable: (table: string) => void;
-  availableTables: string[];
-  /** Tabs created in the UI that don't exist in the DB yet */
-  pendingTabs: PendingTab[];
-  setPendingTabs: React.Dispatch<React.SetStateAction<PendingTab[]>>;
-  loadTables: () => Promise<void>;
-  onRequestNewTab: () => void;
-  dailyGoal: number;
-  setDailyGoal: (goal: number) => void;
-  applications: JobApplication[];
-  isFetchingApps: boolean;
-  draftChanges: Record<string, Partial<JobApplication>>;
-  isSavingDrafts: boolean;
-  selectedRowIds: Set<string>;
-  isSavingManual: boolean;
-  loadApplications: (tableName?: string) => Promise<void>;
-  handleUpdateStatusDraft: (id: string, newStatus: JobApplication["status"]) => void;
-  updateDraftField: (id: string, field: string, value: any) => void;
-  handleSaveDraftChanges: () => Promise<void>;
-  handleDiscardDraftChanges: () => void;
-  handleToggleRowSelect: (id: string) => void;
-  handleToggleSelectAll: (filteredApps: JobApplication[]) => void;
-  handleBulkDelete: () => void;
-  addManualApplication: (app: {
-    company: string;
-    role: string;
-    status: JobApplication["status"];
-    date: string;
-    location: string;
-    anstellungsart: string;
-  }) => Promise<boolean>;
-  setApplications: React.Dispatch<React.SetStateAction<JobApplication[]>>;
-  promotePendingTab: () => void;
-}
+export const JobTrackerPage: React.FC = () => {
+  const {
+    user,
+    token,
+    googleSignInWrapper: googleSignIn,
+    triggerToast,
+    triggerConfirm,
+    selectedTable,
+    setSelectedTable,
+    availableTables,
+    pendingTabs,
+    setPendingTabs,
+    loadTables,
+    handleNewTab: onRequestNewTab,
+    dailyGoal,
+    setDailyGoal,
+    applications,
+    setApplications,
+    promotePendingTab,
+  } = useGlobalTask();
 
-export const JobTrackerPage: React.FC<JobTrackerPageProps> = ({
-  user,
-  token,
-  googleSignIn,
-  triggerToast,
-  triggerConfirm,
-  selectedTable,
-  setSelectedTable,
-  availableTables,
-  pendingTabs,
-  setPendingTabs,
-  loadTables,
-  onRequestNewTab,
-  dailyGoal,
-  setDailyGoal,
-  applications,
-  isFetchingApps,
-  draftChanges,
-  isSavingDrafts,
-  selectedRowIds,
-  isSavingManual,
-  loadApplications,
-  handleUpdateStatusDraft,
-  updateDraftField,
-  handleSaveDraftChanges,
-  handleDiscardDraftChanges,
-  handleToggleRowSelect,
-  handleToggleSelectAll,
-  handleBulkDelete,
-  addManualApplication,
-  setApplications,
-  promotePendingTab,
-}) => {
   const isPendingTab = pendingTabs.some((pt) => pt.key === selectedTable);
+
+  const {
+    isFetchingApps,
+    draftChanges,
+    isSavingDrafts,
+    selectedRowIds,
+    isSavingManual,
+    loadApplications,
+    handleUpdateStatusDraft,
+    updateDraftField,
+    handleSaveDraftChanges,
+    handleDiscardDraftChanges,
+    handleToggleRowSelect,
+    handleToggleSelectAll,
+    handleBulkDelete,
+    addManualApplication,
+  } = useJobApplications({
+    selectedTable,
+    isPendingTab,
+    triggerToast,
+    triggerConfirm,
+    loadTables,
+    promotePendingTab,
+    applications,
+    setApplications,
+  });
   const pendingTabLabel = pendingTabs.find((pt) => pt.key === selectedTable)?.label ?? selectedTable;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);

@@ -17,6 +17,8 @@ import { JobSearchResults } from "../components/JobSearchResults";
 import { SavedSearch } from "../hooks/useSavedSearches";
 import { RenameModal } from "../components/Modals/RenameModal";
 
+import { useGlobalTask } from "../context/GlobalTaskContext";
+
 interface CVExtractionResult {
   job_title: string;
   location: string;
@@ -28,38 +30,19 @@ interface JobSearchCriteria extends CVExtractionResult {
   date_posted: string;
 }
 
-interface JobSearchPageProps {
-  availableTables: string[];
-  triggerToast: (type: "success" | "error", message: string) => void;
-  triggerConfirm: (options: {
-    title: string;
-    message: string;
-    confirmText: string;
-    cancelText?: string;
-    type?: "danger" | "warning" | "info";
-    onConfirm: () => void | Promise<void>;
-  }) => void;
-  savedTabs: SavedSearch[];
-  activeSearchId: number | null;
-  setActiveSearchId: (id: number | null) => void;
-  createNewTab: (name?: string) => Promise<any>;
-  deleteTab: (id: number) => Promise<void>;
-  renameTab: (id: number, newName: string) => Promise<any>;
-  saveSearchToActiveTab: (criteria: any, results: any[]) => Promise<any>;
-}
-
-export const JobSearchPage: React.FC<JobSearchPageProps> = ({
-  availableTables,
-  triggerToast,
-  triggerConfirm,
-  savedTabs,
-  activeSearchId,
-  setActiveSearchId,
-  createNewTab,
-  deleteTab,
-  renameTab,
-  saveSearchToActiveTab,
-}) => {
+export const JobSearchPage: React.FC = () => {
+  const {
+    availableTables,
+    triggerToast,
+    triggerConfirm,
+    savedTabs,
+    activeSearchId,
+    setActiveSearchId,
+    createNewSearchTab: createNewTab,
+    deleteSearchTab: deleteTab,
+    renameSearchTab: renameTab,
+    saveSearchToActiveTab,
+  } = useGlobalTask();
   const [formValues, setFormValues] = useState<CVExtractionResult>({
     job_title: "",
     location: "",
