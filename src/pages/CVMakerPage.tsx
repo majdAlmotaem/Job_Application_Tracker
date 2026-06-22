@@ -3,7 +3,7 @@ import { useCVMaker } from "../hooks/useCVMaker";
 import { CVThemeSelector } from "../components/CV/CVThemeSelector";
 import { CVForm } from "../components/CV/CVForm";
 import { CVPreview } from "../components/CV/CVPreview";
-import { CVAutoFiller } from "../components/CVAutoFiller";
+
 
 export const CVMakerPage: React.FC = () => {
   const {
@@ -74,18 +74,11 @@ export const CVMakerPage: React.FC = () => {
     }
   }, [openSections, lastOpenedSection]);
 
-  const handleAutoFill = (extracted: any) => {
-    updatePersonalDetails({
-      jobTitle: extracted.job_title || "",
-      address: extracted.location || "",
-    });
-  };
-
   return (
     <div className="w-full md:h-full h-auto flex flex-col overflow-hidden">
       {/* Split layout (Left: Forms, Right: Preview) */}
       <div className="flex flex-col md:flex-row gap-6 flex-1 min-h-0 w-full select-none">
-        
+
         {/* Left Column - Scrollable Forms Editor */}
         <div className="w-full md:w-1/2 h-full overflow-y-auto p-6 pb-32 space-y-4 custom-scrollbar">
           <CVThemeSelector
@@ -94,11 +87,6 @@ export const CVMakerPage: React.FC = () => {
             updateConfig={updateConfig}
             isOpen={openSections.styling}
             onToggle={() => toggleSection("styling")}
-          />
-          
-          <CVAutoFiller
-            onExtractionSuccess={handleAutoFill}
-            onExtractionError={(err) => console.error(err)}
           />
 
           <CVForm
