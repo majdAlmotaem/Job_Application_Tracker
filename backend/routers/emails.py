@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from typing import List, Optional
-from backend.controllers import email_controller as controller
+from backend.services.gemini import analyze_emails as service_analyze_emails
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ async def analyze_emails_endpoint(payload: EmailAnalysisRequest):
     
     try:
         logger.info(f"Sending {num_emails} emails to Gemini API for parsing and classification...")
-        results = await controller.analyze_emails(emails_dict)
+        results = await service_analyze_emails(emails_dict)
         
         num_job_related = sum(1 for r in results if r.get('isJobRelated'))
         logger.info(f"Successfully analyzed {num_emails} emails. Found {num_job_related} job-related emails.")

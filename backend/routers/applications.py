@@ -1,13 +1,11 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from typing import List
 from pydantic import BaseModel
 from backend.database import get_db
 from backend.schemas.job_application import JobApplicationResponse, JobApplicationCreate, JobApplicationUpdate
 from backend.controllers import job_application as controller
-from backend.models.job_application import remove_cached_model, sanitize_table_name
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +23,9 @@ def read_tables(db: Session = Depends(get_db)):
     Returns the list of all available user tables in the SQLite database.
     """
     try:
-        result = db.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'saved_searches'"))
-        tables = [row[0] for row in result.fetchall()]
-        return tables
+        return controller.get_tables(db)
     except Exception as e:
+        logger.error(f"Failed to fetch tables: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch tables: {str(e)}"
@@ -40,36 +37,13 @@ def delete_table(table_name: str, db: Session = Depends(get_db)):
     Drops the specified table from the SQLite database. If it's the default 'job_applications'
     table, clears all its records instead of dropping it.
     """
-    sanitized = sanitize_table_name(table_name)
-    if sanitized == "job_applications":
-        try:
-            logger.info("📂 [DB] Request to clear default table 'job_applications'")
-            db.execute(text("DELETE FROM job_applications"))
-            db.commit()
-            logger.info("📂 [DB] Successfully cleared default table 'job_applications'")
-            return {"status": "success", "message": "Default table job_applications cleared"}
-        except Exception as e:
-            db.rollback()
-            logger.error(f"📂 [DB] Failed to clear default table 'job_applications': {e}", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to clear default table: {str(e)}"
-            )
-    else:
-        try:
-            logger.info(f"📂 [DB] Request to drop table '{table_name}' (sanitized to '{sanitized}')")
-            db.execute(text(f'DROP TABLE IF EXISTS "{sanitized}"'))
-            db.commit()
-            remove_cached_model(table_name)
-            logger.info(f"📂 [DB] Successfully dropped table '{table_name}'")
-            return {"status": "success", "message": f"Table {table_name} deleted from database"}
-        except Exception as e:
-            db.rollback()
-            logger.error(f"📂 [DB] Failed to drop table '{table_name}': {e}", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to delete table {table_name}: {str(e)}"
-            )
+    try:
+        return controller.delete_table(db, table_name)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete table {table_name}: {str(e)}"
+        )
 
 class RenameTableRequest(BaseModel):
     new_name: str
@@ -80,30 +54,14 @@ def rename_table(table_name: str, body: RenameTableRequest, db: Session = Depend
     Renames a custom user table via ALTER TABLE ... RENAME TO ...
     The default 'job_applications' table cannot be renamed.
     """
-    sanitized_old = sanitize_table_name(table_name)
-    sanitized_new = sanitize_table_name(body.new_name)
-
-    logger.info(f"📂 [DB] Request to rename table '{table_name}' to '{body.new_name}'")
-
-    if sanitized_old == "job_applications":
-        logger.warning("📂 [DB] Rename aborted: Cannot rename the default table 'job_applications'")
-        raise HTTPException(status_code=400, detail="Cannot rename the default table")
-    if not sanitized_new:
-        logger.warning(f"📂 [DB] Rename aborted: Invalid new name '{body.new_name}'")
-        raise HTTPException(status_code=400, detail="Invalid new name")
-    if sanitized_old == sanitized_new:
-        logger.info(f"📂 [DB] Rename bypassed: Old name matches new name ('{sanitized_old}')")
-        return {"status": "success", "new_name": sanitized_new}
-
     try:
-        db.execute(text(f'ALTER TABLE "{sanitized_old}" RENAME TO "{sanitized_new}"'))
-        db.commit()
-        remove_cached_model(table_name)
-        logger.info(f"📂 [DB] Successfully renamed table '{sanitized_old}' to '{sanitized_new}'")
-        return {"status": "success", "new_name": sanitized_new}
+        return controller.rename_table(db, table_name, body.new_name)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     except Exception as e:
-        db.rollback()
-        logger.error(f"📂 [DB] Failed to rename table '{sanitized_old}' to '{sanitized_new}': {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to rename table: {str(e)}"
