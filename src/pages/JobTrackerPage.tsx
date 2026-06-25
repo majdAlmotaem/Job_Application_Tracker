@@ -523,16 +523,14 @@ export const JobTrackerPage: React.FC = () => {
       />
 
 
-      {/* Stats Dashboard (Daily Goal + Overall Metrics separated) */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      {/* Stats Dashboard (Daily Goal + Overall Metrics in a single flat grid) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-stretch">
         <DailyGoalCard
           addedToday={addedToday}
           dailyGoal={dailyGoal}
           setDailyGoal={setDailyGoal}
         />
-        <div className="lg:col-span-4">
-          <StatsDashboard metrics={metrics} />
-        </div>
+        <StatsDashboard metrics={metrics} />
       </div>
 
       {/* Active Interview Reminders */}
