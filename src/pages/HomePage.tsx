@@ -23,7 +23,7 @@ export const HomePage: React.FC = () => {
       </header>
 
       {/* Navigation Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Card 1: Job Tracker */}
         <Link
           to="/tracker"
@@ -87,26 +87,7 @@ export const HomePage: React.FC = () => {
           </span>
         </Link>
 
-        {/* Card 4: Profile */}
-        <Link
-          to="/profile"
-          className="group professional-card p-6 hover:border-emerald-500/30 transition duration-300 flex flex-col justify-between hover:scale-[1.02]"
-        >
-          <div className="space-y-4">
-            <div className="h-10 w-10 bg-emerald-500/10 border border-emerald-500/15 rounded-xl flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition duration-300">
-              <User className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-100">Profil bearbeiten</h3>
-              <p className="text-slate-400 text-xs mt-2 leading-relaxed">
-                Verwalten Sie Ihre persönlichen Profildaten, Lebensläufe und Einstellungen (In Kürze verfügbar).
-              </p>
-            </div>
-          </div>
-          <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block mt-6 group-hover:translate-x-1 transition duration-150">
-            Profil verwalten &rarr;
-          </span>
-        </Link>
+
       </div>
     </div>
   );
