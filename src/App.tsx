@@ -7,7 +7,6 @@ import { HomePage } from "./pages/HomePage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { JobTrackerPage } from "./pages/JobTrackerPage";
 import { JobSearchPage } from "./pages/JobSearchPage";
-import { ProfilePage } from "./pages/ProfilePage";
 import { CVMakerPage } from "./pages/CVMakerPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { GlobalTaskProvider, useGlobalTask } from "./context/GlobalTaskContext";
@@ -87,7 +86,6 @@ export function AppContent() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/tracker" element={<JobTrackerPage />} />
             <Route path="/search" element={<JobSearchPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/cv-maker" element={<CVMakerPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
