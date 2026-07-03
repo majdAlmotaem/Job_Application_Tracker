@@ -176,9 +176,9 @@ export const JobSearchPage: React.FC = () => {
     await saveSearchToActiveTab(activeTab.criteria, updatedResults);
   };
 
-  const handleRenameConfirm = async () => {
-    if (activeTab && renameValue.trim()) {
-      await renameTab(activeTab.id, renameValue.trim());
+  const handleRenameConfirm = async (newName: string) => {
+    if (activeTab && newName) {
+      await renameTab(activeTab.id, newName);
       setRenameModalOpen(false);
     }
   };
@@ -245,7 +245,6 @@ export const JobSearchPage: React.FC = () => {
                   <button
                     onClick={() => {
                       setActionMenuOpen(false);
-                      setRenameValue(activeTab.tab_name);
                       setRenameModalOpen(true);
                     }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 transition cursor-pointer text-left border-none bg-transparent"
@@ -399,8 +398,7 @@ export const JobSearchPage: React.FC = () => {
       <RenameModal
         isOpen={renameModalOpen}
         onClose={() => setRenameModalOpen(false)}
-        renameValue={renameValue}
-        setRenameValue={setRenameValue}
+        initialName={activeTab?.tab_name || ""}
         onConfirm={handleRenameConfirm}
       />
     </div>

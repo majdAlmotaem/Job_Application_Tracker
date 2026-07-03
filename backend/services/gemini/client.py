@@ -6,7 +6,7 @@ from tenacity import retry, wait_random_exponential, stop_after_attempt, retry_i
 
 logger = logging.getLogger(__name__)
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent"
 
 class GeminiRetryableError(Exception):
     """Exception raised when the Gemini API request can be retried (503, 429, 5xx, timeouts, network issues)."""
@@ -32,7 +32,7 @@ async def _execute_gemini_request(client: httpx.AsyncClient, url: str, payload: 
     response.raise_for_status()
     return response.json()
 
-async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, delay_ms: int = 2000, model: str = "gemini-3.5-flash") -> Dict[str, Any]:
+async def call_gemini_with_retry(payload: Dict[str, Any], retries: int = 4, delay_ms: int = 2000, model: str = "gemini-3.1-flash-lite") -> Dict[str, Any]:
     """
     Executes a Gemini API request with exponential backoff via tenacity for retryable errors.
     """

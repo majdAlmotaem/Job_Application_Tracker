@@ -1,45 +1,62 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { RefreshCw } from "lucide-react";
 import { JobApplication } from "../types";
+import { getLocalDateString } from "../utils/matchingLogic";
+
+export interface ManualAppInput {
+  company: string;
+  role: string;
+  location: string;
+  anstellungsart: string;
+  status: JobApplication["status"];
+  date: string;
+}
 
 interface ManualAddFormProps {
   showAddForm: boolean;
-  setShowAddForm: (show: boolean) => void;
-  manualCompany: string;
-  setManualCompany: (val: string) => void;
-  manualRole: string;
-  setManualRole: (val: string) => void;
-  manualLocation: string;
-  setManualLocation: (val: string) => void;
-  manualAnstellungsart: string;
-  setManualAnstellungsart: (val: string) => void;
-  manualStatus: JobApplication["status"];
-  setManualStatus: (val: JobApplication["status"]) => void;
-  manualDate: string;
-  setManualDate: (val: string) => void;
+  onClose: () => void;
   isSavingManual: boolean;
-  handleManualAddSubmit: (e: React.FormEvent) => void;
+  onSubmit: (data: ManualAppInput) => Promise<boolean>;
 }
 
 export const ManualAddForm: React.FC<ManualAddFormProps> = ({
   showAddForm,
-  setShowAddForm,
-  manualCompany,
-  setManualCompany,
-  manualRole,
-  setManualRole,
-  manualLocation,
-  setManualLocation,
-  manualAnstellungsart,
-  setManualAnstellungsart,
-  manualStatus,
-  setManualStatus,
-  manualDate,
-  setManualDate,
+  onClose,
   isSavingManual,
-  handleManualAddSubmit,
+  onSubmit,
 }) => {
+  const [manualCompany, setManualCompany] = useState("");
+  const [manualRole, setManualRole] = useState("");
+  const [manualLocation, setManualLocation] = useState("");
+  const [manualAnstellungsart, setManualAnstellungsart] = useState("");
+  const [manualStatus, setManualStatus] = useState<JobApplication["status"]>("Applied");
+  const [manualDate, setManualDate] = useState(getLocalDateString());
+
+  const handleManualAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualCompany || !manualRole) return;
+
+    const data: ManualAppInput = {
+      company: manualCompany,
+      role: manualRole,
+      location: manualLocation,
+      anstellungsart: manualAnstellungsart,
+      status: manualStatus,
+      date: manualDate,
+    };
+
+    const success = await onSubmit(data);
+    if (success) {
+      setManualCompany("");
+      setManualRole("");
+      setManualLocation("");
+      setManualAnstellungsart("");
+      setManualStatus("Applied");
+      setManualDate(getLocalDateString());
+    }
+  };
+
   return (
     <AnimatePresence>
       {showAddForm && (
@@ -54,7 +71,7 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
             <h3 className="text-xs font-bold uppercase text-[#64748B] dark:text-slate-100 tracking-wider m-0">Bewerbung manuell erfassen</h3>
             <button
               type="button"
-              onClick={() => setShowAddForm(false)}
+              onClick={onClose}
               className="text-xs font-semibold text-[#2563EB] dark:text-blue-400 hover:underline bg-transparent border-none cursor-pointer"
             >
               Schließen

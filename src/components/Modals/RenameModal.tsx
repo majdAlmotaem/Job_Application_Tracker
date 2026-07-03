@@ -1,21 +1,39 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface RenameModalProps {
   isOpen: boolean;
   onClose: () => void;
-  renameValue: string;
-  setRenameValue: (val: string) => void;
-  onConfirm: () => void;
+  initialName?: string;
+  onConfirm: (newName: string) => void;
 }
 
 export const RenameModal: React.FC<RenameModalProps> = ({
   isOpen,
   onClose,
-  renameValue,
-  setRenameValue,
+  initialName = "",
   onConfirm,
 }) => {
+  const [renameValue, setRenameValue] = useState(initialName);
+
+  useEffect(() => {
+    if (isOpen) {
+      setRenameValue(initialName);
+    }
+  }, [isOpen, initialName]);
+
+  const handleConfirm = () => {
+    if (renameValue.trim()) {
+      onConfirm(renameValue.trim());
+      setRenameValue("");
+    }
+  };
+
+  const handleClose = () => {
+    setRenameValue("");
+    onClose();
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -32,7 +50,7 @@ export const RenameModal: React.FC<RenameModalProps> = ({
               type="text"
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && onConfirm()}
+              onKeyDown={(e) => e.key === "Enter" && handleConfirm()}
               autoFocus
               className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500 font-medium"
               placeholder="z.B. Bewerbungen 2025"
@@ -40,14 +58,14 @@ export const RenameModal: React.FC<RenameModalProps> = ({
             <div className="mt-5 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-lg text-xs transition cursor-pointer border-none"
               >
                 Abbrechen
               </button>
               <button
                 type="button"
-                onClick={onConfirm}
+                onClick={handleConfirm}
                 disabled={!renameValue.trim()}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 font-semibold px-4 py-2 rounded-lg text-xs transition cursor-pointer text-white border-none"
               >

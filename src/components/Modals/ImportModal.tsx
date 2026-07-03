@@ -1,24 +1,44 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { FileSpreadsheet } from "lucide-react";
 
 interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  pendingFile: File | null;
-  importFileName: string;
-  setImportFileName: (val: string) => void;
-  onConfirm: () => void;
+  initialFile: File | null;
+  onConfirm: (file: File | null, fileName: string) => void;
 }
 
 export const ImportModal: React.FC<ImportModalProps> = ({
   isOpen,
   onClose,
-  pendingFile,
-  importFileName,
-  setImportFileName,
+  initialFile,
   onConfirm,
 }) => {
+  const [importFileName, setImportFileName] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialFile) {
+        setImportFileName(initialFile.name.replace(".csv", ""));
+      } else {
+        setImportFileName("");
+      }
+    }
+  }, [isOpen, initialFile]);
+
+  const handleConfirm = () => {
+    if (importFileName.trim()) {
+      onConfirm(initialFile, importFileName.trim());
+      setImportFileName("");
+    }
+  };
+
+  const handleClose = () => {
+    setImportFileName("");
+    onClose();
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -35,7 +55,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               </div>
               <div className="flex-1 space-y-2">
                 <h3 className="text-base font-bold text-slate-100 m-0">
-                  {pendingFile ? "CSV importieren" : "Neue Liste erstellen"}
+                  {initialFile ? "CSV importieren" : "Neue Liste erstellen"}
                 </h3>
                 <p className="text-sm text-slate-400 m-0 leading-relaxed">
                   Geben Sie der neuen Liste einen Namen:
@@ -46,6 +66,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                     type="text"
                     value={importFileName}
                     onChange={(e) => setImportFileName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleConfirm()}
                     className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500 font-medium"
                     placeholder="z.B. Bewerbungen 2025"
                     required
@@ -57,18 +78,18 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-lg text-xs transition cursor-pointer border-none"
               >
                 Abbrechen
               </button>
               <button
                 type="button"
-                onClick={onConfirm}
+                onClick={handleConfirm}
                 disabled={!importFileName.trim()}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 font-semibold px-4 py-2 rounded-lg text-xs transition cursor-pointer text-white border-none"
               >
-                {pendingFile ? "Importieren" : "Erstellen"}
+                {initialFile ? "Importieren" : "Erstellen"}
               </button>
             </div>
           </motion.div>
