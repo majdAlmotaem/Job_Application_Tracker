@@ -1,6 +1,7 @@
 import React from "react";
 import { Table, RefreshCw, Trash2 } from "lucide-react";
 import { JobApplication } from "../types";
+import { formatDisplayDate, formatInputDate } from "../utils/dateFormatter";
 
 interface JobTableProps {
   applications: JobApplication[];
@@ -293,11 +294,12 @@ export const JobTable: React.FC<JobTableProps> = ({
                   style={{ width: columnWidths.date }}
                   className="p-3.5 text-[#64748B] dark:text-slate-100 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
                   onDoubleClick={() =>
-                    startEditing(app.id, "date", draftChanges[app.id]?.date ?? app.date ?? "")
+                    startEditing(app.id, "date", formatInputDate(draftChanges[app.id]?.date ?? app.date ?? ""))
                   }
                 >
                   {editingCell?.id === app.id && editingCell.field === "date" ? (
                     <input
+                      type="date"
                       autoFocus
                       value={editingValue}
                       onChange={(e) => setEditingValue(e.target.value)}
@@ -309,7 +311,7 @@ export const JobTable: React.FC<JobTableProps> = ({
                       className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
                     />
                   ) : (
-                    draftChanges[app.id]?.date ?? app.date
+                    formatDisplayDate(draftChanges[app.id]?.date ?? app.date)
                   )}
                 </td>
 
