@@ -336,21 +336,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {!isSidebarCollapsed && <span>CV-Maker</span>}
           </NavLink>
 
-          {/* Profil */}
-          <NavLink
-            to="/profile"
-            className={({ isActive }) =>
-              `flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"} px-3 py-2.5 rounded-lg transition ${
-                isActive
-                  ? "bg-blue-500/10 border border-blue-500/15 text-blue-400"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
-              }`
-            }
-            title={isSidebarCollapsed ? "Profil bearbeiten" : undefined}
-          >
-            <UserIcon className="h-4 w-4 shrink-0" />
-            {!isSidebarCollapsed && <span>Profil bearbeiten</span>}
-          </NavLink>
+
         </nav>
 
         {/* ── Settings / bottom section ── */}
