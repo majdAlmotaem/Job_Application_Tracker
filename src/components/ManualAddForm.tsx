@@ -29,7 +29,7 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
   const [manualCompany, setManualCompany] = useState("");
   const [manualRole, setManualRole] = useState("");
   const [manualLocation, setManualLocation] = useState("");
-  const [manualAnstellungsart, setManualAnstellungsart] = useState("");
+  const [manualAnstellungsart, setManualAnstellungsart] = useState("Vollzeit");
   const [manualStatus, setManualStatus] = useState<JobApplication["status"]>("Applied");
   const [manualDate, setManualDate] = useState(getLocalDateString());
 
@@ -51,7 +51,7 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
       setManualCompany("");
       setManualRole("");
       setManualLocation("");
-      setManualAnstellungsart("");
+      setManualAnstellungsart("Vollzeit");
       setManualStatus("Applied");
       setManualDate(getLocalDateString());
     }
@@ -83,7 +83,6 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
               <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Unternehmen *</label>
               <input
                 type="text"
-                placeholder="z.B. FINOVESTA GmbH"
                 value={manualCompany}
                 required
                 onChange={(e) => setManualCompany(e.target.value)}
@@ -94,7 +93,6 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
               <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Stelle / Rolle *</label>
               <input
                 type="text"
-                placeholder="z.B. Softwareentwickler"
                 value={manualRole}
                 required
                 onChange={(e) => setManualRole(e.target.value)}
@@ -103,19 +101,23 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Anstellungsart</label>
-              <input
-                type="text"
-                placeholder="z.B. Festanstellung / Vollzeit"
+              <select
                 value={manualAnstellungsart}
                 onChange={(e) => setManualAnstellungsart(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
-              />
+                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500 cursor-pointer"
+              >
+                <option value="Vollzeit" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Vollzeit</option>
+                <option value="Teilzeit" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Teilzeit</option>
+                <option value="Werkstudent" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Werkstudent</option>
+                <option value="Praktikum" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Praktikum</option>
+                <option value="Freelance" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Freelance</option>
+                <option value="Ausbildung" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Ausbildung</option>
+              </select>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Standort</label>
               <input
                 type="text"
-                placeholder="z.B. Düsseldorf, Germany"
                 value={manualLocation}
                 onChange={(e) => setManualLocation(e.target.value)}
                 className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
