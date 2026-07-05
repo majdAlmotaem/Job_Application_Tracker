@@ -60,8 +60,7 @@ Die Anwendung ist als Fullstack-Webanwendung aufgebaut:
 │   │   ├── DashboardPage.tsx   # Hauptstatistiken, Aktivitätsringe, anstehende Termine
 │   │   ├── CVMakerPage.tsx     # Lebenslauf-Editor mit dynamischer Seitenvorschau & PDF-Druck
 │   │   ├── JobTrackerPage.tsx  # Haupt-Tracker-View mit Gmail-Sync und Tab-Verwaltung
-│   │   ├── JobSearchPage.tsx   # Jobsuche mit Live-Scraping und Gemini-Matching
-│   │   └── ProfilePage.tsx     # Profil bearbeiten
+│   │   └── JobSearchPage.tsx   # Jobsuche mit Live-Scraping und Gemini-Matching
 │   ├── services/
 │   │   ├── gmailService.ts     # Schnittstelle zur Gmail API
 │   │   └── googleAuth.ts       # Google Sign-In via Firebase
@@ -129,11 +128,14 @@ pip install -r backend/requirements.txt
 ```
 
 ### 4. Umgebungsvariablen & Konfiguration einrichten
-1. Erstellen Sie eine `.env`-Datei im Projekt-Stammverzeichnis (Root) und tragen Sie Ihren Gemini API-Key ein:
-   ```env
-   GEMINI_API_KEY=dein_gemini_api_key_hier
+1. Kopieren Sie die `.env.example` Datei und benennen Sie die Kopie in `.env` um. Tragen Sie Ihren Gemini API-Key ein:
+   ```bash
+   cp .env.example .env
    ```
-2. Stellen Sie sicher, dass Ihre Firebase-Konfiguration in der Datei `firebase-applet-config.json` im Stammverzeichnis hinterlegt ist.
+2. Kopieren Sie die `firebase-applet-config.json.example` und benennen Sie die Kopie in `firebase-applet-config.json` um. Tragen Sie Ihre Firebase-Projektdaten ein:
+   ```bash
+   cp firebase-applet-config.json.example firebase-applet-config.json
+   ```
 
 ### 5. Anwendung im Entwicklungsmodus starten
 Führen Sie im Stammverzeichnis folgenden Befehl aus:

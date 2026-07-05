@@ -52,13 +52,10 @@ Erstelle im Handumdrehen einen überzeugenden, professionellen Lebenslauf.
 
 ---
 
-### 6. 👤 Profil & Einstellungen
-Coming Soon...
 
----
 
 ## 🛠️ Schnellstart für Entwickler
 
-Möchtest du das Projekt lokal ausführen oder weiterentwickeln? Alle technischen Details, die Systemarchitektur sowie Installationsanweisungen findest du in unserer ausführlichen Entwickler-Dokumentation:
+Möchtest du das Projekt lokal ausführen oder weiterentwickeln? Alle technischen Details, die Systemarchitektur sowie Installationsanweisungen findest du in meiner ausführlichen Entwickler-Dokumentation:
 
 👉 **[Zur Entwickler-Dokumentation](docs/developer_documentation.md)**
