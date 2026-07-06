@@ -30,6 +30,7 @@ import { ActiveRemindersList } from "../components/ActiveRemindersList";
 import { EmailSyncResults } from "../components/EmailSyncResults";
 
 import { getLocalDateString } from "../utils/matchingLogic";
+import { formatInputDate } from "../utils/dateFormatter";
 
 export const JobTrackerPage: React.FC = () => {
   const {
@@ -156,7 +157,7 @@ export const JobTrackerPage: React.FC = () => {
 
   const applicationsWithDrafts = applications.map((app) => ({ ...app, ...(draftChanges[app.id] || {}) }));
   const todayStr = getLocalDateString();
-  const addedToday = applicationsWithDrafts.filter((app) => app.date === todayStr).length;
+  const addedToday = applicationsWithDrafts.filter((app) => formatInputDate(app.date) === todayStr).length;
 
   const metrics = {
     total: applicationsWithDrafts.length,
