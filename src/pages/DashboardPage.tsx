@@ -3,6 +3,7 @@ import { LayoutDashboard } from "lucide-react";
 import { ActivityRings } from "../components/ActivityRings";
 import { JobApplication } from "../types";
 import { getLocalDateString } from "../utils/matchingLogic";
+import { formatInputDate } from "../utils/dateFormatter";
 import { useInterviewReminders } from "../hooks/useInterviewReminders";
 import { ActiveRemindersList } from "../components/ActiveRemindersList";
 import { LastSearchResultsCard } from "../components/LastSearchResultsCard";
@@ -23,7 +24,7 @@ export const DashboardPage: React.FC = () => {
   const todayStr = getLocalDateString();
   
   // 1. Calculate Daily Goal Progress (added today)
-  const addedToday = applications.filter((app) => app.date === todayStr).length;
+  const addedToday = applications.filter((app) => formatInputDate(app.date) === todayStr).length;
 
   // 2. Calculate Interviews progress
   const totalInterviews = applications.filter((app) => app.status === "Interview").length;
