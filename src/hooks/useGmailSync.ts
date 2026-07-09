@@ -111,7 +111,7 @@ export const useGmailSync = ({
     startAITask("Gmail-Postfach durchsuchen...", "Verbindung mit Gmail wird hergestellt...");
     let progressInterval: any;
     try {
-      const messages = await searchGmailMessages(currentToken!, gmailQuery, 15);
+      const messages = await searchGmailMessages(currentToken!, gmailQuery, 10);
       const totalEmails = messages.length;
 
       if (totalEmails === 0) {
