@@ -61,7 +61,7 @@ async def search_live_jobs(criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
     }
     
     try:
-        response_json = await call_gemini_with_retry(payload, model="gemini-3.5-flash")
+        response_json = await call_gemini_with_retry(payload, model="gemini-flash-lite-latest")
         candidates = response_json.get("candidates", [])
         if not candidates:
             raise ValueError("No candidates found in Gemini response")
