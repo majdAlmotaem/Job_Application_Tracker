@@ -28,11 +28,12 @@ def create_application(db: Session, app_data: JobApplicationCreate, table_name: 
     model = get_job_application_model(table_name, db.bind)
     logger.info(
         f"📂 [DB] Creating new application in table '{table_name}': "
-        f"Company='{app_data.company}', Role='{app_data.role}', Status='{app_data.status}', emailId='{app_data.emailId}'"
+        f"Company='{app_data.company}', Role='{app_data.role}', Stage='{app_data.stage}', Status='{app_data.status}', emailId='{app_data.emailId}'"
     )
     db_app = model(
         company=app_data.company,
         role=app_data.role,
+        stage=app_data.stage,
         status=app_data.status,
         date=app_data.date,
         location=app_data.location,
@@ -63,14 +64,14 @@ def update_application(db: Session, app_id: int, app_data: JobApplicationUpdate,
 
     update_dict = app_data.model_dump(exclude_unset=True)
     logger.info(f"📂 [DB] Updating application ID={app_id} in table '{table_name}'. Changes: {update_dict}")
-    logger.info(f"📂 [DB] Before Update: Company='{db_app.company}', Role='{db_app.role}', Status='{db_app.status}'")
+    logger.info(f"📂 [DB] Before Update: Company='{db_app.company}', Role='{db_app.role}', Stage='{db_app.stage}', Status='{db_app.status}'")
     
     for key, value in update_dict.items():
         setattr(db_app, key, value)
 
     db.commit()
     db.refresh(db_app)
-    logger.info(f"📂 [DB] Successfully updated application ID={app_id} in table '{table_name}'. After Update: Status='{db_app.status}'")
+    logger.info(f"📂 [DB] Successfully updated application ID={app_id} in table '{table_name}'. After Update: Stage='{db_app.stage}', Status='{db_app.status}'")
     return db_app
 
 def delete_application(db: Session, app_id: int, table_name: str = "job_applications") -> bool:

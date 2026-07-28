@@ -40,9 +40,13 @@ async def analyze_emails(emails: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                     "type": "STRING",
                     "description": "The job title / role position in German if written in German (e.g., Softwareentwickler, Webentwickler, Backend-Entwickler, Unknown)."
                 },
+                "stage": {
+                    "type": "STRING",
+                    "description": "The pipeline progress stage. Must be one of: 'Applied' (application submitted), 'Interview' (technical, HR, or in-depth interview), 'Offer' (job offer received)."
+                },
                 "status": {
                     "type": "STRING",
-                    "description": "The estimated hiring status. Must be one of: 'Applied', 'Interview', 'Rejected', 'Offer', 'Received' or 'Unknown'."
+                    "description": "The current outcome status. Must be one of: 'Open' (still in progress), 'Rejected' (company declined), 'Accepted' (candidate accepted offer), 'Withdrawn' (candidate withdrew)."
                 },
                 "classification": {
                     "type": "STRING",
@@ -70,7 +74,7 @@ async def analyze_emails(emails: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 }
             },
             "required": [
-                "emailId", "isJobRelated", "company", "role", "status", "classification",
+                "emailId", "isJobRelated", "company", "role", "stage", "status", "classification",
                 "location", "anstellungsart", "confidence", "summary", "suggestedAction"
             ]
         }
@@ -104,8 +108,12 @@ async def analyze_emails(emails: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
         prompt = (
             "Analyze the following emails (most are in German for the German job market) received by the user and determine if they are related to a job application.\n"
-            "For each email, extract the hiring company, the job title/role (keep it in German as original, e.g. \"Softwareentwickler\"), estimate the current application status, the office/job location (e.g., \"Düsseldorf, Germany\" or \"Düsseldorf, Deutschland\"), the employment type (anstellungsart, e.g. \"Festanstellung\", \"Vollzeit\", \"Teilzeit\", \"Freie Mitarbeit\"), summarize the message, and offer action points.\n"
-            "Only categorize an email as isJobRelated: true if it is an actual application confirmation (Applied), status update/recruiter follow-up, interview request (Interview), assessment, feedback, rejection (Rejected), or job offer (Offer). Standard newsletters, generic job alerts from social media, spam, or promotional material are NOT job related (isJobRelated: false).\n\n"
+            "For each email, extract the hiring company, the job title/role (keep it in German as original, e.g. \"Softwareentwickler\"), and determine TWO separate fields:\n"
+            "1. 'stage': The pipeline progress - must be one of: 'Applied' (application submitted), 'Interview' (technical/HR interview/phone screen), 'Offer' (job offer received).\n"
+            "2. 'status': The outcome - must be one of: 'Open' (still active/in progress), 'Rejected' (company declined the candidate), 'Accepted' (candidate accepted an offer), 'Withdrawn' (candidate withdrew).\n"
+            "IMPORTANT: stage and status are independent. For example, a rejection after an interview should be stage='Interview', status='Rejected'. A new application confirmation is stage='Applied', status='Open'.\n"
+            "Also extract the office/job location (e.g., \"Düsseldorf, Germany\" or \"Düsseldorf, Deutschland\"), the employment type (anstellungsart, e.g. \"Festanstellung\", \"Vollzeit\", \"Teilzeit\", \"Freie Mitarbeit\"), summarize the message, and offer action points.\n"
+            "Only categorize an email as isJobRelated: true if it is an actual application confirmation (stage=Applied), status update/recruiter follow-up, interview request (stage=Interview), assessment, feedback, rejection (status=Rejected), or job offer (stage=Offer). Standard newsletters, generic job alerts from social media, spam, or promotional material are NOT job related (isJobRelated: false).\n\n"
             "For each job-relevant email, you MUST classify it as:\n"
             "- 'Neue Bewerbung' if the email is a confirmation of a new application receipt (e.g., containing phrases like \"wir haben deine bewerbung bekommen\", \"danke für deine bewerbung\", \"eingangsbestätigung\", \"vielen dank für deine bewerbung\").\n"
             "- 'Statuswechsel' if the email represents a change or progress in status, such as an invite to an interview (\"interview\", \"gespräch\", \"telefonat\"), a rejection (\"absage\", \"nicht berücksichtigt\", \"anderweitig entschieden\"), or an offer (\"angebot\", \"arbeitsvertrag\", \"vertrag\").\n\n"

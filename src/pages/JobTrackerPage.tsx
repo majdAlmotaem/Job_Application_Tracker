@@ -5,7 +5,7 @@ import {
   Plus,
   Upload
 } from "lucide-react";
-import { JobApplication } from "../types";
+import { JobApplication, ApplicationStage, ApplicationStatus } from "../types";
 import { JobTable } from "../components/JobTable";
 import { StatsDashboard } from "../components/StatsDashboard";
 import { DailyGoalCard } from "../components/DailyGoalCard";
@@ -74,6 +74,7 @@ export const JobTrackerPage: React.FC = () => {
     selectedRowIds,
     isSavingManual,
     loadApplications,
+    handleUpdateStageDraft,
     handleUpdateStatusDraft,
     updateDraftField,
     handleSaveDraftChanges,
@@ -123,6 +124,7 @@ export const JobTrackerPage: React.FC = () => {
 
   const {
     searchTerm, setSearchTerm,
+    filterStage, setFilterStage,
     filterStatus, setFilterStatus,
     sortType, setSortType,
     editingCell, editingValue, setEditingValue,
@@ -161,19 +163,27 @@ export const JobTrackerPage: React.FC = () => {
 
   const metrics = {
     total: applicationsWithDrafts.length,
-    interviewing: applicationsWithDrafts.filter((app) => app.status === "Interview").length,
-    offers: applicationsWithDrafts.filter((app) => app.status === "Offer").length,
+    interviewing: applicationsWithDrafts.filter((app) => app.stage === "Interview" && app.status === "Open").length,
+    hadInterview: applicationsWithDrafts.filter((app) => app.stage === "Interview" || app.stage === "Offer" || !!app.interview_date).length,
+    offers: applicationsWithDrafts.filter((app) => app.stage === "Offer" && app.status === "Open").length,
     rejected: applicationsWithDrafts.filter((app) => app.status === "Rejected").length,
   };
 
-  const getStatusColorClass = (status: JobApplication["status"]) => {
-    switch (status) {
+  const getStageBadgeClass = (stage: ApplicationStage) => {
+    switch (stage) {
       case "Applied": return "bg-blue-950/50 text-blue-400 border-blue-900";
       case "Interview": return "bg-violet-950/50 text-violet-400 border-violet-900";
-      case "Rejected": return "bg-red-950/50 text-red-400 border-red-900";
       case "Offer": return "bg-emerald-950/50 text-emerald-400 border-emerald-900";
-      case "Received": return "bg-teal-950/50 text-teal-400 border-teal-900";
-      case "Unknown":
+      default: return "bg-slate-900 text-slate-400 border-slate-800";
+    }
+  };
+
+  const getStatusColorClass = (status: ApplicationStatus) => {
+    switch (status) {
+      case "Open": return "bg-sky-950/50 text-sky-400 border-sky-900";
+      case "Rejected": return "bg-red-950/50 text-red-400 border-red-900";
+      case "Accepted": return "bg-emerald-950/50 text-emerald-400 border-emerald-900";
+      case "Withdrawn": return "bg-amber-950/50 text-amber-400 border-amber-900";
       default: return "bg-slate-900 text-slate-400 border-slate-800";
     }
   };
@@ -224,16 +234,16 @@ export const JobTrackerPage: React.FC = () => {
           setExportModalOpen(true);
         }}
         onOpenReminder={() => {
-          const interviewApps = applications.filter((app) => app.status === "Interview");
+          const interviewApps = applications.filter((app) => app.stage === "Interview" && app.status === "Open");
           if (interviewApps.length === 0) {
-            triggerToast("error", "Sie müssen zuerst den Status einer Bewerbung auf 'Interview' setzen.");
+            triggerToast("error", "Sie müssen zuerst die Stufe einer Bewerbung auf 'Interview' setzen (mit Status 'Open').");
             return;
           }
           reminderProps.openReminderModal(interviewApps[0].id);
         }}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-stretch">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-stretch">
         <DailyGoalCard addedToday={addedToday} dailyGoal={dailyGoal} setDailyGoal={setDailyGoal} />
         <StatsDashboard metrics={metrics} />
       </div>
@@ -305,6 +315,8 @@ export const JobTrackerPage: React.FC = () => {
               handleSaveDraftChanges={handleSaveDraftChanges}
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
+              filterStage={filterStage}
+              setFilterStage={setFilterStage}
               filterStatus={filterStatus}
               setFilterStatus={setFilterStatus}
               sortType={sortType}
@@ -365,8 +377,10 @@ export const JobTrackerPage: React.FC = () => {
               saveEditing={saveEditing}
               setEditingValue={setEditingValue}
               draftChanges={draftChanges}
+              handleUpdateStageDraft={handleUpdateStageDraft}
               handleUpdateStatusDraft={handleUpdateStatusDraft}
               isSavingDrafts={isSavingDrafts}
+              getStageBadgeClass={getStageBadgeClass}
               getStatusColorClass={getStatusColorClass}
             />
           </>

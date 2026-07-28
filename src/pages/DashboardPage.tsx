@@ -27,13 +27,13 @@ export const DashboardPage: React.FC = () => {
   const addedToday = applications.filter((app) => formatInputDate(app.date) === todayStr).length;
 
   // 2. Calculate Interviews progress
-  const totalInterviews = applications.filter((app) => app.status === "Interview").length;
+  const totalInterviews = applications.filter((app) => app.stage === "Interview" && app.status === "Open").length;
   const interviewsWithReminder = applications.filter(
-    (app) => app.status === "Interview" && app.interview_date && app.interview_date >= todayStr
+    (app) => app.stage === "Interview" && app.status === "Open" && app.interview_date && app.interview_date >= todayStr
   ).length;
 
   // 3. Calculate Offers and Total Apps
-  const offers = applications.filter((app) => app.status === "Offer").length;
+  const offers = applications.filter((app) => app.stage === "Offer" && app.status === "Open").length;
   const totalApps = applications.length;
 
   // Load interview reminders

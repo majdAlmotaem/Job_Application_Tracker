@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { RefreshCw } from "lucide-react";
-import { JobApplication } from "../types";
+import { JobApplication, ApplicationStage, ApplicationStatus } from "../types";
 import { getLocalDateString } from "../utils/matchingLogic";
 
 export interface ManualAppInput {
@@ -9,7 +9,8 @@ export interface ManualAppInput {
   role: string;
   location: string;
   anstellungsart: string;
-  status: JobApplication["status"];
+  stage: ApplicationStage;
+  status: ApplicationStatus;
   date: string;
 }
 
@@ -30,7 +31,8 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
   const [manualRole, setManualRole] = useState("");
   const [manualLocation, setManualLocation] = useState("");
   const [manualAnstellungsart, setManualAnstellungsart] = useState("Vollzeit");
-  const [manualStatus, setManualStatus] = useState<JobApplication["status"]>("Applied");
+  const [manualStage, setManualStage] = useState<ApplicationStage>("Applied");
+  const [manualStatus, setManualStatus] = useState<ApplicationStatus>("Open");
   const [manualDate, setManualDate] = useState(getLocalDateString());
 
   const handleManualAddSubmit = async (e: React.FormEvent) => {
@@ -42,6 +44,7 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
       role: manualRole,
       location: manualLocation,
       anstellungsart: manualAnstellungsart,
+      stage: manualStage,
       status: manualStatus,
       date: manualDate,
     };
@@ -52,7 +55,8 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
       setManualRole("");
       setManualLocation("");
       setManualAnstellungsart("Vollzeit");
-      setManualStatus("Applied");
+      setManualStage("Applied");
+      setManualStatus("Open");
       setManualDate(getLocalDateString());
     }
   };
@@ -124,18 +128,28 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Status</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Stufe</label>
               <select
-                value={manualStatus}
-                onChange={(e) => setManualStatus(e.target.value as JobApplication["status"])}
+                value={manualStage}
+                onChange={(e) => setManualStage(e.target.value as ApplicationStage)}
                 className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500 cursor-pointer"
               >
                 <option value="Applied" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Applied</option>
                 <option value="Interview" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Interview</option>
                 <option value="Offer" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Offer</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Status</label>
+              <select
+                value={manualStatus}
+                onChange={(e) => setManualStatus(e.target.value as ApplicationStatus)}
+                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500 cursor-pointer"
+              >
+                <option value="Open" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Open</option>
                 <option value="Rejected" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Rejected</option>
-                <option value="Received" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Received</option>
-                <option value="Unknown" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Unknown</option>
+                <option value="Accepted" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Accepted</option>
+                <option value="Withdrawn" className="bg-white dark:bg-slate-900 text-[#1E293B] dark:text-white font-semibold">Withdrawn</option>
               </select>
             </div>
             <div className="space-y-1">

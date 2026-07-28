@@ -106,29 +106,74 @@ def is_fuzzy_duplicate(existing_app: Dict[str, Any], new_app: Dict[str, Any]) ->
     location_match = is_similar_location(existing_app.get("location", ""), new_app.get("location", ""))
     return role_match or location_match
 
-# Status Normalization
+# Status and Stage Normalization
+
+VALID_STAGES = {"Applied", "Interview", "Offer"}
+VALID_STATUSES = {"Open", "Rejected", "Accepted", "Withdrawn"}
+
+def normalize_stage(stage_str: str) -> str:
+    """Normalize a stage string to one of: Applied, Interview, Offer."""
+    if not stage_str:
+        return "Applied"
+    
+    cleaned = stage_str.strip().lower()
+    
+    if any(k in cleaned for k in ["interview", "gespräch", "gespraech", "eingeladen", "vorstellungsgespräch", "screening", "telefonat", "phone screen"]):
+        return "Interview"
+    if any(k in cleaned for k in ["offer", "angebot", "zusage", "vertrag"]):
+        return "Offer"
+    if any(k in cleaned for k in ["applied", "bewerbung", "beworben", "gesendet", "offen"]):
+        return "Applied"
+    
+    capitalized = stage_str.strip().capitalize()
+    if capitalized in VALID_STAGES:
+        return capitalized
+    return "Applied"
 
 def normalize_status(status_str: str) -> str:
+    """Normalize a status string to one of: Open, Rejected, Accepted, Withdrawn."""
     if not status_str:
-        return "Applied"
+        return "Open"
+    
+    cleaned = status_str.strip().lower()
+    
+    if any(k in cleaned for k in ["reject", "absage", "abgelehnt", "nicht berücksichtigt", "archiviert"]):
+        return "Rejected"
+    if any(k in cleaned for k in ["accepted", "angenommen", "zugesagt"]):
+        return "Accepted"
+    if any(k in cleaned for k in ["withdrawn", "zurückgezogen", "abgebrochen"]):
+        return "Withdrawn"
+    if any(k in cleaned for k in ["open", "offen", "aktiv", "laufend"]):
+        return "Open"
+    
+    capitalized = status_str.strip().capitalize()
+    if capitalized in VALID_STATUSES:
+        return capitalized
+    return "Open"
+
+def normalize_legacy_status(status_str: str) -> dict:
+    """
+    Maps legacy single-status values to the new two-field model.
+    Used when importing CSVs that only have a single 'status' column.
+    Returns dict with 'stage' and 'status' keys.
+    """
+    if not status_str:
+        return {"stage": "Applied", "status": "Open"}
     
     cleaned = status_str.strip().lower()
     
     if any(k in cleaned for k in ["interview", "gespräch", "gespraech", "eingeladen", "vorstellungsgespräch"]):
-        return "Interview"
+        return {"stage": "Interview", "status": "Open"}
     if any(k in cleaned for k in ["reject", "absage", "abgelehnt", "nicht berücksichtigt", "archiviert"]):
-        return "Rejected"
+        return {"stage": "Applied", "status": "Rejected"}
     if any(k in cleaned for k in ["offer", "angebot", "zusage", "vertrag"]):
-        return "Offer"
+        return {"stage": "Offer", "status": "Open"}
     if any(k in cleaned for k in ["receive", "eingegangen", "erhalten"]):
-        return "Received"
+        return {"stage": "Applied", "status": "Open"}
     if any(k in cleaned for k in ["applied", "bewerbung", "beworben", "gesendet", "offen"]):
-        return "Applied"
-        
-    capitalized = status_str.strip().capitalize()
-    if capitalized in ["Applied", "Interview", "Rejected", "Offer", "Received", "Unknown"]:
-        return capitalized
-    return "Unknown"
+        return {"stage": "Applied", "status": "Open"}
+    
+    return {"stage": "Applied", "status": "Open"}
 
 # CSV Parsing & Generating
 
@@ -170,7 +215,8 @@ def parse_csv_content(csv_text: str) -> List[Dict[str, Any]]:
     company_idx = find_idx(["company", "unternehmen", "firma"], 0)
     role_idx = find_idx(["jobtitle", "job title", "role", "rolle", "stelle", "berufsbezeichnung", "job_title"], 1)
     date_idx = find_idx(["applicationdate", "application date", "date", "datum", "bewerbungsdatum", "application_date"], 2)
-    status_idx = find_idx(["status", "status / stage", "hiring status"], 3)
+    stage_idx = find_idx(["stage", "stufe", "phase", "pipeline"])
+    status_idx = find_idx(["status", "status / stage", "hiring status", "ergebnis", "outcome"], 3)
     location_idx = find_idx(["location", "standort", "ort", "stadt"], 4)
     anstellungsart_idx = find_idx(["anstellungsart", "employment type", "job type", "art der anstellung", "employment_type"], 5)
     
@@ -180,6 +226,9 @@ def parse_csv_content(csv_text: str) -> List[Dict[str, Any]]:
     suggested_action_idx = find_idx(["suggestedaction", "suggested action", "empfohlene aktion", "action"])
     email_id_idx = find_idx(["emailid", "email id", "id"])
     notes_idx = find_idx(["notes", "notizen", "kommentar", "bemerkung"])
+
+    # Determine if the CSV has a separate stage column
+    has_stage_column = stage_idx >= 0
 
     parsed_records = []
     
@@ -192,20 +241,39 @@ def parse_csv_content(csv_text: str) -> List[Dict[str, Any]]:
                 return row[idx].strip()
             return default
 
-        # Map to dict
-        record = {
-            "company": get_val(company_idx, "Unknown"),
-            "role": get_val(role_idx, "Unknown"),
-            "date": get_val(date_idx, ""),
-            "status": normalize_status(get_val(status_idx, "Applied")),
-            "location": get_val(location_idx, "N/A"),
-            "anstellungsart": get_val(anstellungsart_idx, "N/A"),
-            "subject": get_val(subject_idx, ""),
-            "summary": get_val(summary_idx, ""),
-            "suggestedAction": get_val(suggested_action_idx, ""),
-            "emailId": get_val(email_id_idx, ""),
-            "notes": get_val(notes_idx, "")
-        }
+        if has_stage_column:
+            # CSV has explicit stage + status columns
+            record = {
+                "company": get_val(company_idx, "Unknown"),
+                "role": get_val(role_idx, "Unknown"),
+                "date": get_val(date_idx, ""),
+                "stage": normalize_stage(get_val(stage_idx, "Applied")),
+                "status": normalize_status(get_val(status_idx, "Open")),
+                "location": get_val(location_idx, "N/A"),
+                "anstellungsart": get_val(anstellungsart_idx, "N/A"),
+                "subject": get_val(subject_idx, ""),
+                "summary": get_val(summary_idx, ""),
+                "suggestedAction": get_val(suggested_action_idx, ""),
+                "emailId": get_val(email_id_idx, ""),
+                "notes": get_val(notes_idx, "")
+            }
+        else:
+            # Legacy CSV: derive stage + status from single status column
+            legacy = normalize_legacy_status(get_val(status_idx, "Applied"))
+            record = {
+                "company": get_val(company_idx, "Unknown"),
+                "role": get_val(role_idx, "Unknown"),
+                "date": get_val(date_idx, ""),
+                "stage": legacy["stage"],
+                "status": legacy["status"],
+                "location": get_val(location_idx, "N/A"),
+                "anstellungsart": get_val(anstellungsart_idx, "N/A"),
+                "subject": get_val(subject_idx, ""),
+                "summary": get_val(summary_idx, ""),
+                "suggestedAction": get_val(suggested_action_idx, ""),
+                "emailId": get_val(email_id_idx, ""),
+                "notes": get_val(notes_idx, "")
+            }
         
         parsed_records.append(record)
 
@@ -219,7 +287,7 @@ def generate_csv_content(applications: List[JobApplicationModel]) -> str:
     writer = csv.writer(output, delimiter=";", lineterminator="\n") # Use semicolon standard in Europe
 
     headers = [
-        "Firma", "Position", "Bewerbungsdatum", "Status", "Standort", 
+        "Firma", "Position", "Bewerbungsdatum", "Stufe", "Status", "Standort", 
         "Anstellungsart", "Notizen", "Betreff", "Zusammenfassung", 
         "Empfohlene Aktion", "Email ID"
     ]
@@ -230,6 +298,7 @@ def generate_csv_content(applications: List[JobApplicationModel]) -> str:
             app.company or "",
             app.role or "",
             app.date or "",
+            getattr(app, 'stage', None) or "Applied",
             app.status or "",
             app.location or "",
             app.anstellungsart or "",

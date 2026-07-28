@@ -64,7 +64,7 @@ async def analyze_emails_endpoint(payload: EmailAnalysisRequest):
                 logger.info(
                     f"   - Email #{idx + 1} ({email_id}):\n"
                     f"     Original -> Subject: '{subject}' | Snippet: '{snippet_clean}'\n"
-                    f"     Analyzed -> [Job-Related] Company='{r.get('company')}', Role='{r.get('role')}', Status='{r.get('status')}', Classification='{r.get('classification')}'"
+                    f"     Analyzed -> [Job-Related] Company='{r.get('company')}', Role='{r.get('role')}', Stage='{r.get('stage')}', Status='{r.get('status')}', Classification='{r.get('classification')}'"
                 )
             else:
                 logger.info(

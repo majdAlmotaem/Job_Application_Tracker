@@ -29,7 +29,7 @@ export const useInterviewReminders = ({
     if (rem.tableName !== selectedTable) return false;
     if (rem.date < todayStrForReminders) return false;
     const linkedApp = applications.find((app) => app.id === rem.applicationId);
-    if (!linkedApp || linkedApp.status !== "Interview") return false;
+    if (!linkedApp || linkedApp.stage !== "Interview") return false;
     return true;
   });
 
@@ -38,7 +38,7 @@ export const useInterviewReminders = ({
 
     // 1. Get all interview reminders from the loaded applications in the DB
     const dbReminders = applications
-      .filter((app) => app.status === "Interview" && app.interview_date && app.interview_date >= todayStr)
+      .filter((app) => app.stage === "Interview" && app.interview_date && app.interview_date >= todayStr)
       .map((app) => ({
         id: `db-${app.id}`,
         applicationId: app.id,
@@ -56,7 +56,7 @@ export const useInterviewReminders = ({
     const mergedCurrentTableReminders: InterviewReminder[] = [...dbReminders];
     currentTableActiveLocal.forEach((localRem) => {
       const linkedApp = applications.find((app) => app.id === localRem.applicationId);
-      if (linkedApp && linkedApp.status === "Interview") {
+      if (linkedApp && linkedApp.stage === "Interview") {
         const alreadyInMerged = mergedCurrentTableReminders.some((r) => r.applicationId === localRem.applicationId);
         if (!alreadyInMerged) {
           mergedCurrentTableReminders.push(localRem);

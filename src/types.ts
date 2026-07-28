@@ -1,8 +1,12 @@
+export type ApplicationStage = "Applied" | "Interview" | "Offer";
+export type ApplicationStatus = "Open" | "Rejected" | "Accepted" | "Withdrawn";
+
 export interface JobApplication {
   id: string; // Row number in the sheet
   company: string;
   role: string; // maps to jobtitle
-  status: "Applied" | "Interview" | "Rejected" | "Offer" | "Received" | "Unknown";
+  stage: ApplicationStage;
+  status: ApplicationStatus;
   date: string; // maps to applicationdate
   location?: string;
   anstellungsart?: string;
@@ -22,7 +26,8 @@ export interface EmailUpdate {
   isJobRelated: boolean;
   company: string;
   role: string; // maps to jobtitle
-  status: "Applied" | "Interview" | "Rejected" | "Offer" | "Received" | "Unknown";
+  stage: ApplicationStage;
+  status: ApplicationStatus;
   location?: string;
   anstellungsart?: string;
   confidence: number;
@@ -40,33 +45,51 @@ export interface SpreadsheetConfig {
   status: "valid" | "not_found" | "unconfigured" | "creating";
 }
 
-export function normalizeStatus(statusStr: string | undefined | null): JobApplication["status"] {
-  if (!statusStr) return "Applied";
-  const cleaned = statusStr.trim().toLowerCase();
+export function normalizeStage(stageStr: string | undefined | null): ApplicationStage {
+  if (!stageStr) return "Applied";
+  const cleaned = stageStr.trim().toLowerCase();
   
-  if (cleaned.includes("interview") || cleaned.includes("gespräch") || cleaned.includes("gespraech") || cleaned.includes("eingeladen") || cleaned.includes("gespraech") || cleaned.includes("vorstellungsgespräch")) {
+  if (cleaned.includes("interview") || cleaned.includes("gespräch") || cleaned.includes("gespraech") || cleaned.includes("eingeladen") || cleaned.includes("vorstellungsgespräch") || cleaned.includes("screening")) {
     return "Interview";
-  }
-  if (cleaned.includes("reject") || cleaned.includes("absage") || cleaned.includes("abgelehnt") || cleaned.includes("nicht berücksichtigt") || cleaned.includes("archiviert")) {
-    return "Rejected";
   }
   if (cleaned.includes("offer") || cleaned.includes("angebot") || cleaned.includes("zusage") || cleaned.includes("vertrag")) {
     return "Offer";
   }
-  if (cleaned.includes("receive") || cleaned.includes("eingegangen") || cleaned.includes("erhalten")) {
-    return "Received";
-  }
-  if (cleaned.includes("applied") || cleaned.includes("bewerbung") || cleaned.includes("beworben") || cleaned.includes("gesendet") || cleaned.includes("offen")) {
+  if (cleaned.includes("applied") || cleaned.includes("bewerbung") || cleaned.includes("beworben") || cleaned.includes("gesendet")) {
     return "Applied";
   }
   
-  // Try exact match with first letter capitalized
-  const capitalized = statusStr.trim().charAt(0).toUpperCase() + statusStr.trim().slice(1).toLowerCase();
-  if (["Applied", "Interview", "Rejected", "Offer", "Received", "Unknown"].includes(capitalized)) {
-    return capitalized as JobApplication["status"];
+  const capitalized = stageStr.trim().charAt(0).toUpperCase() + stageStr.trim().slice(1).toLowerCase();
+  if (["Applied", "Interview", "Offer"].includes(capitalized)) {
+    return capitalized as ApplicationStage;
   }
-  return "Unknown";
+  return "Applied";
 }
+
+export function normalizeStatus(statusStr: string | undefined | null): ApplicationStatus {
+  if (!statusStr) return "Open";
+  const cleaned = statusStr.trim().toLowerCase();
+  
+  if (cleaned.includes("reject") || cleaned.includes("absage") || cleaned.includes("abgelehnt") || cleaned.includes("nicht berücksichtigt") || cleaned.includes("archiviert")) {
+    return "Rejected";
+  }
+  if (cleaned.includes("accepted") || cleaned.includes("angenommen") || cleaned.includes("zugesagt")) {
+    return "Accepted";
+  }
+  if (cleaned.includes("withdrawn") || cleaned.includes("zurückgezogen") || cleaned.includes("abgebrochen")) {
+    return "Withdrawn";
+  }
+  if (cleaned.includes("open") || cleaned.includes("offen") || cleaned.includes("aktiv") || cleaned.includes("laufend")) {
+    return "Open";
+  }
+  
+  const capitalized = statusStr.trim().charAt(0).toUpperCase() + statusStr.trim().slice(1).toLowerCase();
+  if (["Open", "Rejected", "Accepted", "Withdrawn"].includes(capitalized)) {
+    return capitalized as ApplicationStatus;
+  }
+  return "Open";
+}
+
 export interface InterviewReminder {
   id: string;
   applicationId: string;

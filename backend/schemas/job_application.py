@@ -4,7 +4,8 @@ from typing import Optional
 class JobApplicationBase(BaseModel):
     company: str
     role: str
-    status: str
+    stage: str = "Applied"
+    status: str = "Open"
     date: str
     location: Optional[str] = None
     anstellungsart: Optional[str] = None
@@ -22,6 +23,7 @@ class JobApplicationCreate(JobApplicationBase):
 class JobApplicationUpdate(BaseModel):
     company: Optional[str] = None
     role: Optional[str] = None
+    stage: Optional[str] = None
     status: Optional[str] = None
     date: Optional[str] = None
     location: Optional[str] = None

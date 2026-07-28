@@ -1,6 +1,6 @@
 import React from "react";
 import { Table, RefreshCw, Trash2 } from "lucide-react";
-import { JobApplication } from "../types";
+import { JobApplication, ApplicationStage, ApplicationStatus } from "../types";
 import { formatDisplayDate, formatInputDate } from "../utils/dateFormatter";
 
 interface JobTableProps {
@@ -19,9 +19,11 @@ interface JobTableProps {
   saveEditing: (id: string, field: string) => void;
   setEditingValue: (val: string) => void;
   draftChanges: Record<string, Partial<JobApplication>>;
-  handleUpdateStatusDraft: (id: string, status: JobApplication["status"]) => void;
+  handleUpdateStageDraft: (id: string, stage: ApplicationStage) => void;
+  handleUpdateStatusDraft: (id: string, status: ApplicationStatus) => void;
   isSavingDrafts: boolean;
-  getStatusColorClass: (status: JobApplication["status"]) => string;
+  getStageBadgeClass: (stage: ApplicationStage) => string;
+  getStatusColorClass: (status: ApplicationStatus) => string;
 }
 
 export const JobTable: React.FC<JobTableProps> = ({
@@ -40,8 +42,10 @@ export const JobTable: React.FC<JobTableProps> = ({
   saveEditing,
   setEditingValue,
   draftChanges,
+  handleUpdateStageDraft,
   handleUpdateStatusDraft,
   isSavingDrafts,
+  getStageBadgeClass,
   getStatusColorClass
 }) => {
   if (isFetchingApps) {
@@ -77,7 +81,7 @@ export const JobTable: React.FC<JobTableProps> = ({
           Keine Einträge für diese Filter
         </p>
         <p className="text-[11px] text-[#64748B] dark:text-slate-400 leading-normal max-w-sm mx-auto mt-0.5">
-          Geben Sie einen anderen Suchbegriff ein oder ändern Sie den Statusfilter.
+          Geben Sie einen anderen Suchbegriff ein oder ändern Sie den Filter.
         </p>
       </div>
     );
@@ -121,6 +125,17 @@ export const JobTable: React.FC<JobTableProps> = ({
               <span className="truncate block pr-2">Stelle / Rolle</span>
               <div
                 onMouseDown={(e) => startResize(e, "role")}
+                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-10"
+                style={{ touchAction: "none" }}
+              />
+            </th>
+            <th
+              style={{ width: columnWidths.stage, position: "relative" }}
+              className="p-3 select-none"
+            >
+              <span className="truncate block pr-2">Stufe</span>
+              <div
+                onMouseDown={(e) => startResize(e, "stage")}
                 className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-10"
                 style={{ touchAction: "none" }}
               />
@@ -257,6 +272,35 @@ export const JobTable: React.FC<JobTableProps> = ({
                   )}
                 </td>
 
+                {/* Stage Dropdown */}
+                <td style={{ width: columnWidths.stage }} className="p-3.5 overflow-visible">
+                  {isSavingDrafts && draftChanges[app.id] ? (
+                    <div className="flex items-center gap-1 font-semibold text-slate-400 py-1">
+                      <RefreshCw className="h-3 w-3 animate-spin text-slate-400" /> Speichere...
+                    </div>
+                  ) : (
+                    <div className="relative inline-block w-full text-[#1E293B] dark:text-white">
+                      <select
+                        id={`stage-select-${app.id}`}
+                        value={draftChanges[app.id]?.stage ?? app.stage ?? "Applied"}
+                        onChange={(e) =>
+                          handleUpdateStageDraft(
+                            app.id,
+                            e.target.value as ApplicationStage
+                          )
+                        }
+                        className={`w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs font-bold focus:outline-none cursor-pointer text-slate-800 dark:text-white ${getStageBadgeClass(
+                          (draftChanges[app.id]?.stage ?? app.stage) as ApplicationStage
+                        )}`}
+                      >
+                        <option value="Applied" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Applied</option>
+                        <option value="Interview" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Interview</option>
+                        <option value="Offer" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Offer</option>
+                      </select>
+                    </div>
+                  )}
+                </td>
+
                 {/* Status Dropdown */}
                 <td style={{ width: columnWidths.status }} className="p-3.5 overflow-visible">
                   {isSavingDrafts && draftChanges[app.id] ? (
@@ -267,23 +311,21 @@ export const JobTable: React.FC<JobTableProps> = ({
                     <div className="relative inline-block w-full text-[#1E293B] dark:text-white">
                       <select
                         id={`status-select-${app.id}`}
-                        value={draftChanges[app.id]?.status ?? app.status ?? "Applied"}
+                        value={draftChanges[app.id]?.status ?? app.status ?? "Open"}
                         onChange={(e) =>
                           handleUpdateStatusDraft(
                             app.id,
-                            e.target.value as JobApplication["status"]
+                            e.target.value as ApplicationStatus
                           )
                         }
                         className={`w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs font-bold focus:outline-none cursor-pointer text-slate-800 dark:text-white ${getStatusColorClass(
-                          draftChanges[app.id]?.status ?? app.status
+                          (draftChanges[app.id]?.status ?? app.status) as ApplicationStatus
                         )}`}
                       >
-                        <option value="Applied" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Applied</option>
-                        <option value="Interview" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Interview</option>
-                        <option value="Offer" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Offer</option>
+                        <option value="Open" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Open</option>
                         <option value="Rejected" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Rejected</option>
-                        <option value="Received" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Received</option>
-                        <option value="Unknown" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Unknown</option>
+                        <option value="Accepted" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Accepted</option>
+                        <option value="Withdrawn" className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white font-semibold">Withdrawn</option>
                       </select>
                     </div>
                   )}

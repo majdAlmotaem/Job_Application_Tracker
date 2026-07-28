@@ -55,14 +55,22 @@ export const EmailSyncResults: React.FC<EmailSyncResultsProps> = ({
     const isExpanded = expandedEmailIds.includes(update.emailId);
     const dupMatch = getCompanyMatch(update.company);
 
-    const getEmailStatusBadge = (statusStr: string) => {
-      switch (statusStr) {
+    const getEmailStageBadge = (stageStr: string) => {
+      switch (stageStr) {
         case "Applied": return "bg-blue-950/45 text-blue-400 border border-blue-900/40";
         case "Interview": return "bg-violet-950/45 text-violet-400 border border-violet-900/40";
-        case "Rejected": return "bg-rose-950/45 text-rose-400 border border-rose-900/40";
         case "Offer": return "bg-emerald-950/45 text-emerald-400 border border-emerald-900/40";
-        case "Received": return "bg-slate-900 text-slate-300 border border-slate-800";
         default: return "bg-slate-900 text-slate-400 border border-slate-850";
+      }
+    };
+
+    const getEmailStatusBadge = (statusStr: string) => {
+      switch (statusStr) {
+        case "Open": return "bg-sky-950/45 text-sky-400 border border-sky-900/40";
+        case "Rejected": return "bg-rose-950/45 text-rose-400 border border-rose-900/40";
+        case "Accepted": return "bg-emerald-950/45 text-emerald-400 border border-emerald-900/40";
+        case "Withdrawn": return "bg-amber-950/45 text-amber-400 border border-amber-900/40";
+        default: return "bg-slate-900 text-slate-300 border border-slate-800";
       }
     };
 
@@ -77,6 +85,10 @@ export const EmailSyncResults: React.FC<EmailSyncResultsProps> = ({
             <span className="font-bold text-slate-100">{update.company}</span>
             <span className="text-slate-500">•</span>
             <span className="text-slate-300">{update.role}</span>
+            <span className="text-slate-500">•</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getEmailStageBadge(update.stage)}`}>
+              {update.stage}
+            </span>
             <span className="text-slate-500">•</span>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getEmailStatusBadge(update.status)}`}>
               {update.status}
@@ -136,7 +148,7 @@ export const EmailSyncResults: React.FC<EmailSyncResultsProps> = ({
               <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-950/20 border border-amber-900/30 p-2.5 rounded-lg">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>
-                  Bestehender Eintrag gefunden (Status: "{dupMatch.status}"). Klick auf "Übernehmen" setzt Status auf "{update.status}".
+                  Bestehender Eintrag gefunden (Stufe: "{dupMatch.stage}", Status: "{dupMatch.status}"). Klick auf "Übernehmen" aktualisiert auf Stufe "{update.stage}", Status "{update.status}".
                 </span>
               </div>
             )}

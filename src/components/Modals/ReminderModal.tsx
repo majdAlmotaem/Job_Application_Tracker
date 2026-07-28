@@ -47,7 +47,7 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
                   onChange={(e) => setReminderAppId(e.target.value)}
                   className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-blue-500 font-semibold cursor-pointer"
                 >
-                  {applications.filter((app) => app.status === "Interview").map((app) => (
+                  {applications.filter((app) => app.stage === "Interview").map((app) => (
                     <option key={app.id} value={app.id} className="bg-slate-950 text-white font-semibold">
                       {app.company} ({app.role})
                     </option>

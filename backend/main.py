@@ -22,7 +22,7 @@ if hasattr(JobApplicationModel, "__table__"):
 
 Base.metadata.create_all(bind=engine)
 
-# Dynamically run schema migration to add source_file and interview_date columns if they don't exist
+# Dynamically run schema migration to add source_file, interview_date, and stage columns if they don't exist
 from sqlalchemy import inspect, text
 inspector = inspect(engine)
 for table_name in inspector.get_table_names():
@@ -34,6 +34,23 @@ for table_name in inspector.get_table_names():
         if "interview_date" not in columns and table_name != "saved_searches":
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN interview_date TEXT'))
+        # Migration: Add `stage` column and convert legacy single-status values
+        if "stage" not in columns and table_name != "saved_searches":
+            with engine.begin() as conn:
+                conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN stage VARCHAR DEFAULT \'Applied\''))
+                # Migrate legacy status values into the new two-field model:
+                # Old "Interview" → stage=Interview, status=Open
+                conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Interview\', status = \'Open\' WHERE status = \'Interview\''))
+                # Old "Offer" → stage=Offer, status=Open
+                conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Offer\', status = \'Open\' WHERE status = \'Offer\''))
+                # Old "Rejected" → stage=Applied (conservative default), status=Rejected
+                conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Applied\', status = \'Rejected\' WHERE status = \'Rejected\''))
+                # Old "Applied" → stage=Applied, status=Open
+                conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Applied\', status = \'Open\' WHERE status = \'Applied\''))
+                # Old "Received" → stage=Applied, status=Open
+                conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Applied\', status = \'Open\' WHERE status = \'Received\''))
+                # Old "Unknown" → stage=Applied, status=Open
+                conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Applied\', status = \'Open\' WHERE status = \'Unknown\''))
 
 
 import time

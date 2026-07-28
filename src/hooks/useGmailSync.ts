@@ -211,7 +211,7 @@ export const useGmailSync = ({
         if (dismissedList.includes(up.emailId)) return false;
         const fuzzyDuplicate = applications.find((app) => isFuzzyDuplicate(app, up));
         if (fuzzyDuplicate && up.classification !== "Statuswechsel") return false;
-        if (fuzzyDuplicate && fuzzyDuplicate.status.toLowerCase() === up.status.toLowerCase()) return false;
+        if (fuzzyDuplicate && fuzzyDuplicate.stage.toLowerCase() === up.stage.toLowerCase() && fuzzyDuplicate.status.toLowerCase() === up.status.toLowerCase()) return false;
         return true;
       });
 
@@ -241,10 +241,10 @@ export const useGmailSync = ({
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: update.status }),
+            body: JSON.stringify({ stage: update.stage, status: update.status }),
           }
         );
-        if (!response.ok) throw new Error("Failed to update status");
+        if (!response.ok) throw new Error("Failed to update stage/status");
         const updatedApp = await response.json();
         const updated = applications.map((app) => (app.id === match.id ? updatedApp : app));
         setApplications(updated);
@@ -252,6 +252,7 @@ export const useGmailSync = ({
         const newApp = {
           company: update.company,
           role: update.role,
+          stage: update.stage,
           status: update.status,
           date: update.date,
           location: update.location || "N/A",

@@ -11,6 +11,8 @@ interface FilterSortBarProps {
   handleSaveDraftChanges: () => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  filterStage: string;
+  setFilterStage: (stage: string) => void;
   filterStatus: string;
   setFilterStatus: (status: string) => void;
   sortType: string;
@@ -31,6 +33,8 @@ export const FilterSortBar: React.FC<FilterSortBarProps> = ({
   handleSaveDraftChanges,
   searchTerm,
   setSearchTerm,
+  filterStage,
+  setFilterStage,
   filterStatus,
   setFilterStatus,
   sortType,
@@ -90,15 +94,25 @@ export const FilterSortBar: React.FC<FilterSortBarProps> = ({
         <div className="flex items-center gap-1.5">
           <Filter className="h-3.5 w-3.5 text-[#64748B] dark:text-slate-250" />
           <select
+            value={filterStage}
+            onChange={(e) => setFilterStage(e.target.value)}
+            className="bg-slate-900 border border-slate-800 py-1.5 px-3 rounded-lg text-xs text-white font-semibold cursor-pointer focus:outline-none focus:border-blue-500"
+          >
+            <option value="All" className="bg-slate-950 text-white font-semibold">Alle Stufen</option>
+            <option value="Applied" className="bg-slate-950 text-white font-semibold">Applied</option>
+            <option value="Interview" className="bg-slate-950 text-white font-semibold">Interview</option>
+            <option value="Offer" className="bg-slate-950 text-white font-semibold">Offer</option>
+          </select>
+          <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className="bg-slate-900 border border-slate-800 py-1.5 px-3 rounded-lg text-xs text-white font-semibold cursor-pointer focus:outline-none focus:border-blue-500"
           >
             <option value="All" className="bg-slate-950 text-white font-semibold">Alle Status</option>
-            <option value="Applied" className="bg-slate-950 text-white font-semibold">Applied</option>
-            <option value="Interview" className="bg-slate-950 text-white font-semibold">Interview</option>
-            <option value="Offer" className="bg-slate-950 text-white font-semibold">Offers</option>
+            <option value="Open" className="bg-slate-950 text-white font-semibold">Open</option>
             <option value="Rejected" className="bg-slate-950 text-white font-semibold">Rejected</option>
+            <option value="Accepted" className="bg-slate-950 text-white font-semibold">Accepted</option>
+            <option value="Withdrawn" className="bg-slate-950 text-white font-semibold">Withdrawn</option>
           </select>
         </div>
 
@@ -113,6 +127,7 @@ export const FilterSortBar: React.FC<FilterSortBarProps> = ({
             <option value="date_asc" className="bg-slate-950 text-white font-semibold">Älteste zuerst</option>
             <option value="company_asc" className="bg-slate-950 text-white font-semibold">Unternehmen (A-Z)</option>
             <option value="company_desc" className="bg-slate-950 text-white font-semibold">Unternehmen (Z-A)</option>
+            <option value="stage_asc" className="bg-slate-950 text-white font-semibold">Stufe</option>
             <option value="status_asc" className="bg-slate-950 text-white font-semibold">Status</option>
           </select>
         </div>

@@ -16,6 +16,7 @@ export function useJobTableLogic({
 }: UseJobTableLogicProps) {
   // 1. Controls states
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterStage, setFilterStage] = useState<string>("All");
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [sortType, setSortType] = useState<string>("date_desc");
 
@@ -29,7 +30,8 @@ export function useJobTableLogic({
     id: 56,
     company: 180,
     role: 180,
-    status: 150,
+    stage: 130,
+    status: 130,
     date: 130,
     location: 160,
     anstellungsart: 150,
@@ -94,21 +96,24 @@ export function useJobTableLogic({
           app.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (app.role && app.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (app.location && app.location.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesStage = filterStage === "All" ? true : app.stage === filterStage;
         const matchesStatus = filterStatus === "All" ? true : app.status === filterStatus;
-        return matchesSearch && matchesStatus;
+        return matchesSearch && matchesStage && matchesStatus;
       })
       .sort((a, b) => {
         if (sortType === "date_desc") return parseDateForSort(b.date) - parseDateForSort(a.date);
         if (sortType === "date_asc") return parseDateForSort(a.date) - parseDateForSort(b.date);
         if (sortType === "company_asc") return a.company.localeCompare(b.company);
         if (sortType === "company_desc") return b.company.localeCompare(a.company);
+        if (sortType === "stage_asc") return a.stage.localeCompare(b.stage);
         if (sortType === "status_asc") return a.status.localeCompare(b.status);
         return 0;
       });
-  }, [applications, draftChanges, searchTerm, filterStatus, sortType]);
+  }, [applications, draftChanges, searchTerm, filterStage, filterStatus, sortType]);
 
   return {
     searchTerm, setSearchTerm,
+    filterStage, setFilterStage,
     filterStatus, setFilterStatus,
     sortType, setSortType,
     editingCell, editingValue, setEditingValue,

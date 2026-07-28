@@ -1,8 +1,10 @@
 import React from "react";
+import { BarChart3, Calendar, Award, Ban, Users } from "lucide-react";
 
 export interface DashboardMetrics {
   total: number;
   interviewing: number;
+  hadInterview: number;
   offers: number;
   rejected: number;
 }
@@ -10,8 +12,6 @@ export interface DashboardMetrics {
 interface StatsDashboardProps {
   metrics: DashboardMetrics;
 }
-
-import { BarChart3, Calendar, Award, Ban } from "lucide-react";
 
 export const StatsDashboard: React.FC<StatsDashboardProps> = ({
   metrics,
@@ -46,11 +46,27 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
         </div>
         <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-slate-400">
           <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-          <span>Interviews</span>
+          <span>Laufende Gespräche</span>
         </div>
       </div>
 
-      {/* Card 3: Offers Received */}
+      {/* Card 3: Had Interview / Total Interviews Reached */}
+      <div className="professional-card p-5 flex flex-col justify-between h-full animate-fadeIn">
+        <div>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            Gespräche geführt
+          </span>
+          <span className="text-3xl font-extrabold text-cyan-400 block mt-2 tracking-tight">
+            {metrics.hadInterview}
+          </span>
+        </div>
+        <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-slate-400">
+          <Users className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+          <span>Interviews absolviert</span>
+        </div>
+      </div>
+
+      {/* Card 4: Offers Received */}
       <div className="professional-card p-5 flex flex-col justify-between h-full animate-fadeIn">
         <div>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -66,7 +82,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
         </div>
       </div>
 
-      {/* Card 4: Rejections */}
+      {/* Card 5: Rejections */}
       <div className="professional-card p-5 flex flex-col justify-between h-full animate-fadeIn">
         <div>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">

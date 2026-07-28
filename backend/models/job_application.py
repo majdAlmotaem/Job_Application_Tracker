@@ -10,7 +10,8 @@ class JobApplicationModel(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     company = Column(String, nullable=False)
     role = Column(String, nullable=False)  # Maps to jobtitle/role
-    status = Column(String, nullable=False, default="Applied")
+    stage = Column(String, nullable=False, default="Applied")  # Pipeline progress: Applied, Interview, Offer
+    status = Column(String, nullable=False, default="Open")  # Outcome: Open, Rejected, Accepted, Withdrawn
     date = Column(String, nullable=False)  # Maps to applicationdate
     location = Column(String, nullable=True)
     anstellungsart = Column(String, nullable=True)
@@ -76,7 +77,8 @@ def get_job_application_model(table_name: str, bind=None):
         id = Column(Integer, primary_key=True, index=True, autoincrement=True)
         company = Column(String, nullable=False)
         role = Column(String, nullable=False)
-        status = Column(String, nullable=False, default="Applied")
+        stage = Column(String, nullable=False, default="Applied")
+        status = Column(String, nullable=False, default="Open")
         date = Column(String, nullable=False)
         location = Column(String, nullable=True)
         anstellungsart = Column(String, nullable=True)

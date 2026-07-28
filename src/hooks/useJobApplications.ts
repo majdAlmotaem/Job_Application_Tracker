@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { JobApplication } from "../types";
+import { JobApplication, ApplicationStage, ApplicationStatus } from "../types";
 
 export interface UseJobApplicationsProps {
   selectedTable: string;
@@ -61,7 +61,21 @@ export const useJobApplications = ({
     }
   }, [selectedTable, isPendingTab]);
 
-  const handleUpdateStatusDraft = (rowId: string, newStatus: JobApplication["status"]) => {
+  const handleUpdateStageDraft = (rowId: string, newStage: ApplicationStage) => {
+    setDraftChanges((prev) => {
+      const rowChanges = prev[rowId] || {};
+      return {
+        ...prev,
+        [rowId]: {
+          ...rowChanges,
+          stage: newStage,
+        },
+      };
+    });
+    triggerToast("success", "Stufe-Entwurf geändert.");
+  };
+
+  const handleUpdateStatusDraft = (rowId: string, newStatus: ApplicationStatus) => {
     setDraftChanges((prev) => {
       const rowChanges = prev[rowId] || {};
       return {
@@ -189,7 +203,8 @@ export const useJobApplications = ({
   const addManualApplication = async (app: {
     company: string;
     role: string;
-    status: JobApplication["status"];
+    stage: ApplicationStage;
+    status: ApplicationStatus;
     date: string;
     location: string;
     anstellungsart: string;
@@ -232,6 +247,7 @@ export const useJobApplications = ({
     setSelectedRowIds,
     isSavingManual,
     loadApplications,
+    handleUpdateStageDraft,
     handleUpdateStatusDraft,
     updateDraftField,
     handleSaveDraftChanges,
