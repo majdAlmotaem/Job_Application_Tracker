@@ -22,6 +22,8 @@ class JobApplicationModel(Base):
     notes = Column(Text, nullable=True)
     source_file = Column(String, nullable=True, default="Default")
     interview_date = Column(String, nullable=True)
+    interview_time = Column(String, nullable=True)
+    interview_note = Column(String, nullable=True)
 
 
 import re
@@ -89,6 +91,8 @@ def get_job_application_model(table_name: str, bind=None):
         notes = Column(Text, nullable=True)
         source_file = Column(String, nullable=True, default=table_name)
         interview_date = Column(String, nullable=True)
+        interview_time = Column(String, nullable=True)
+        interview_note = Column(String, nullable=True)
 
     _dynamic_models[sanitized] = DynamicJobApplication
     

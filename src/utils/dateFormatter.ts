@@ -1,38 +1,24 @@
-export function formatDisplayDate(dateString: string | undefined | null): string {
-  if (!dateString) return "-";
+// Clean, minimal German date & time utilities
 
-  // Check for YYYY-MM-DD format strictly to avoid timezone shift bugs
-  const ymdMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (ymdMatch) {
-    return `${ymdMatch[3]}.${ymdMatch[2]}.${ymdMatch[1]}`;
+export function parseGermanDate(dateStr?: string | null): number {
+  if (!dateStr) return 0;
+  const str = String(dateStr).trim();
+  if (str.includes(".")) {
+    const parts = str.split(".");
+    if (parts.length === 3) {
+      return Number(parts[2] + parts[1].padStart(2, "0") + parts[0].padStart(2, "0")) || 0;
+    }
   }
-
-  // Parse other formats like "Jul 2, 2026"
-  const d = new Date(dateString);
-  if (isNaN(d.getTime())) {
-    return dateString;
+  if (str.includes("-")) {
+    const parts = str.split("-");
+    if (parts.length === 3) {
+      return Number(parts[0] + parts[1].padStart(2, "0") + parts[2].padStart(2, "0")) || 0;
+    }
   }
-
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-
-  return `${day}.${month}.${year}`;
+  return 0;
 }
 
-export function formatInputDate(dateString: string | undefined | null): string {
-  if (!dateString) return "";
-  
-  // If already YYYY-MM-DD, return as is
-  const ymdMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (ymdMatch) return dateString;
-
-  const d = new Date(dateString);
-  if (isNaN(d.getTime())) return dateString;
-
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  
-  return `${year}-${month}-${day}`;
+export function formatGermanDateTime(dateStr?: string | null, timeStr?: string | null): string {
+  if (!dateStr) return "-";
+  return timeStr?.trim() ? `${dateStr} um ${timeStr.trim()} Uhr` : dateStr;
 }

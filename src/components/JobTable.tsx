@@ -1,7 +1,7 @@
 import React from "react";
-import { Table, RefreshCw, Trash2 } from "lucide-react";
+import { Table, RefreshCw, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { JobApplication, ApplicationStage, ApplicationStatus } from "../types";
-import { formatDisplayDate, formatInputDate } from "../utils/dateFormatter";
+
 
 interface JobTableProps {
   applications: JobApplication[];
@@ -24,6 +24,14 @@ interface JobTableProps {
   isSavingDrafts: boolean;
   getStageBadgeClass: (stage: ApplicationStage) => string;
   getStatusColorClass: (status: ApplicationStatus) => string;
+  // Pagination
+  paginatedApplications: JobApplication[];
+  currentPage: number;
+  setCurrentPage: (page: number) => void;
+  pageSize: number;
+  setPageSize: (size: number) => void;
+  totalPages: number;
+  totalFilteredCount: number;
 }
 
 export const JobTable: React.FC<JobTableProps> = ({
@@ -46,7 +54,14 @@ export const JobTable: React.FC<JobTableProps> = ({
   handleUpdateStatusDraft,
   isSavingDrafts,
   getStageBadgeClass,
-  getStatusColorClass
+  getStatusColorClass,
+  paginatedApplications,
+  currentPage,
+  setCurrentPage,
+  pageSize,
+  setPageSize,
+  totalPages,
+  totalFilteredCount,
 }) => {
   if (isFetchingApps) {
     return (
@@ -88,8 +103,8 @@ export const JobTable: React.FC<JobTableProps> = ({
   }
 
   const allSelected =
-    filteredAndSortedApplications.length > 0 &&
-    filteredAndSortedApplications.every((app) => selectedRowIds.has(app.id));
+    paginatedApplications.length > 0 &&
+    paginatedApplications.every((app) => selectedRowIds.has(app.id));
 
   return (
     <div className="overflow-x-auto rounded-xl border border-[#E2E8F0] dark:border-slate-800">
@@ -103,7 +118,7 @@ export const JobTable: React.FC<JobTableProps> = ({
               <input
                 type="checkbox"
                 checked={allSelected}
-                onChange={() => handleToggleSelectAll(filteredAndSortedApplications)}
+                onChange={() => handleToggleSelectAll(paginatedApplications)}
                 className="rounded border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-950 text-blue-600 focus:ring-blue-500/20 focus:ring-offset-slate-900 cursor-pointer h-4.5 w-4.5 transition-all focus:outline-none"
               />
             </th>
@@ -187,7 +202,7 @@ export const JobTable: React.FC<JobTableProps> = ({
           </tr>
         </thead>
         <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800/60">
-          {filteredAndSortedApplications.map((app) => {
+          {paginatedApplications.map((app) => {
             const isSelected = selectedRowIds.has(app.id);
             const hasDraft = !!draftChanges[app.id];
             return (
@@ -336,13 +351,14 @@ export const JobTable: React.FC<JobTableProps> = ({
                   style={{ width: columnWidths.date }}
                   className="p-3.5 text-[#64748B] dark:text-slate-100 font-medium cursor-default truncate overflow-hidden whitespace-nowrap"
                   onDoubleClick={() =>
-                    startEditing(app.id, "date", formatInputDate(draftChanges[app.id]?.date ?? app.date ?? ""))
+                    startEditing(app.id, "date", draftChanges[app.id]?.date ?? app.date ?? "")
                   }
                 >
                   {editingCell?.id === app.id && editingCell.field === "date" ? (
                     <input
-                      type="date"
+                      type="text"
                       autoFocus
+                      placeholder="TT.MM.JJJJ"
                       value={editingValue}
                       onChange={(e) => setEditingValue(e.target.value)}
                       onBlur={() => saveEditing(app.id, "date")}
@@ -353,7 +369,7 @@ export const JobTable: React.FC<JobTableProps> = ({
                       className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
                     />
                   ) : (
-                    formatDisplayDate(draftChanges[app.id]?.date ?? app.date)
+                    draftChanges[app.id]?.date ?? app.date ?? "-"
                   )}
                 </td>
 
@@ -419,6 +435,83 @@ export const JobTable: React.FC<JobTableProps> = ({
           })}
         </tbody>
       </table>
+
+      {/* Pagination Footer */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-[#E2E8F0] dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+        {/* Left: Page size selector & count */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">
+              Zeilen/Seite
+            </label>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="bg-white dark:bg-slate-950 border border-[#E2E8F0] dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 rounded-md px-2 py-1 focus:outline-none focus:border-blue-500 cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+          <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+            {totalFilteredCount === 0 ? "Keine Einträge" : (
+              <>
+                {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, totalFilteredCount)} von {totalFilteredCount}
+              </>
+            )}
+          </span>
+        </div>
+
+        {/* Right: Page navigation */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage <= 1}
+            className="p-1.5 rounded-md border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition text-xs"
+            title="Erste Seite"
+          >
+            <ChevronsLeft className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1}
+            className="p-1.5 rounded-md border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition text-xs"
+            title="Vorherige Seite"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+
+          <span className="px-3 py-1 text-[11px] font-bold text-slate-600 dark:text-slate-300 tabular-nums">
+            Seite {currentPage} / {totalPages}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages}
+            className="p-1.5 rounded-md border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition text-xs"
+            title="Nächste Seite"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage >= totalPages}
+            className="p-1.5 rounded-md border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition text-xs"
+            title="Letzte Seite"
+          >
+            <ChevronsRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

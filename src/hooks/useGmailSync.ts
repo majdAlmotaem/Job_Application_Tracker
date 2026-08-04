@@ -2,7 +2,7 @@ import { useState } from "react";
 import { User } from "firebase/auth";
 import { JobApplication, EmailUpdate } from "../types";
 import { searchGmailMessages } from "../services/gmailService";
-import { isSimilarCompany, isFuzzyDuplicate } from "../utils/matchingLogic";
+import { isSimilarCompany, isFuzzyDuplicate, getLocalDateString } from "../utils/matchingLogic";
 import { useGlobalTask } from "../context/GlobalTaskContext";
 
 export interface UseGmailSyncProps {
@@ -21,6 +21,7 @@ export interface UseGmailSyncProps {
     type?: "danger" | "warning" | "info";
     onConfirm: () => void | Promise<void>;
   }) => void;
+  onInterviewOpenTrigger?: (appId: string) => void;
 }
 
 export const useGmailSync = ({
@@ -32,6 +33,7 @@ export const useGmailSync = ({
   setApplications,
   triggerToast,
   triggerConfirm,
+  onInterviewOpenTrigger,
 }: UseGmailSyncProps) => {
   const {
     isEmailSyncRunning: isScanning,
@@ -188,7 +190,7 @@ export const useGmailSync = ({
           subject: "(Kein Betreff)",
           snippet: "",
           body: "",
-          date: new Date().toLocaleDateString(),
+          date: getLocalDateString(),
         };
         return {
           ...result,
@@ -268,6 +270,14 @@ export const useGmailSync = ({
         if (!response.ok) throw new Error("Failed to create application");
         const savedApp = await response.json();
         setApplications([savedApp, ...applications]);
+        if (update.stage === "Interview" && update.status === "Open") {
+          onInterviewOpenTrigger?.(savedApp.id);
+        }
+      }
+      if (update.classification === "Statuswechsel" && match) {
+        if (update.stage === "Interview" && update.status === "Open") {
+          onInterviewOpenTrigger?.(match.id);
+        }
       }
       update.synced = true;
       setEmailUpdates([...emailUpdates]);

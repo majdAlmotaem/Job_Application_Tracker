@@ -34,6 +34,12 @@ for table_name in inspector.get_table_names():
         if "interview_date" not in columns and table_name != "saved_searches":
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN interview_date TEXT'))
+        if "interview_time" not in columns and table_name != "saved_searches":
+            with engine.begin() as conn:
+                conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN interview_time TEXT'))
+        if "interview_note" not in columns and table_name != "saved_searches":
+            with engine.begin() as conn:
+                conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN interview_note TEXT'))
         # Migration: Add `stage` column and convert legacy single-status values
         if "stage" not in columns and table_name != "saved_searches":
             with engine.begin() as conn:

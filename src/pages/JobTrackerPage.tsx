@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { User } from "firebase/auth";
 import {
   RefreshCw,
@@ -30,7 +30,6 @@ import { ActiveRemindersList } from "../components/ActiveRemindersList";
 import { EmailSyncResults } from "../components/EmailSyncResults";
 
 import { getLocalDateString } from "../utils/matchingLogic";
-import { formatInputDate } from "../utils/dateFormatter";
 
 export const JobTrackerPage: React.FC = () => {
   const {
@@ -67,6 +66,17 @@ export const JobTrackerPage: React.FC = () => {
   const [exportFileSelected, setExportFileSelected] = useState<string>("job_applications");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
+  const reminderProps = useInterviewReminders({
+    selectedTable, applications, setApplications, triggerToast,
+  });
+
+  const openReminderModalRef = useRef(reminderProps.openReminderModal);
+  useEffect(() => { openReminderModalRef.current = reminderProps.openReminderModal; });
+
+  const handleInterviewOpenTrigger = useCallback((appId: string) => {
+    openReminderModalRef.current(appId);
+  }, []);
+
   const {
     isFetchingApps,
     draftChanges,
@@ -92,6 +102,7 @@ export const JobTrackerPage: React.FC = () => {
     promotePendingTab,
     applications,
     setApplications,
+    onInterviewOpenTrigger: handleInterviewOpenTrigger,
   });
 
   const formatTableName = (name: string) => {
@@ -130,7 +141,11 @@ export const JobTrackerPage: React.FC = () => {
     editingCell, editingValue, setEditingValue,
     startEditing, cancelEditing, saveEditing,
     columnWidths, startResize,
-    filteredAndSortedApplications
+    filteredAndSortedApplications,
+    paginatedApplications,
+    currentPage, setCurrentPage,
+    pageSize, setPageSize,
+    totalPages, totalFilteredCount,
   } = useJobTableLogic({
     applications,
     draftChanges,
@@ -140,10 +155,7 @@ export const JobTrackerPage: React.FC = () => {
 
   const gmailSyncProps = useGmailSync({
     user, token, googleSignIn, selectedTable, applications, setApplications, triggerToast, triggerConfirm,
-  });
-
-  const reminderProps = useInterviewReminders({
-    selectedTable, applications, setApplications, triggerToast,
+    onInterviewOpenTrigger: handleInterviewOpenTrigger,
   });
 
   // Close action menu on outside click
@@ -157,17 +169,24 @@ export const JobTrackerPage: React.FC = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const applicationsWithDrafts = applications.map((app) => ({ ...app, ...(draftChanges[app.id] || {}) }));
-  const todayStr = getLocalDateString();
-  const addedToday = applicationsWithDrafts.filter((app) => formatInputDate(app.date) === todayStr).length;
+  const applicationsWithDrafts = useMemo(
+    () => applications.map((app) => ({ ...app, ...(draftChanges[app.id] || {}) })),
+    [applications, draftChanges]
+  );
 
-  const metrics = {
+  const todayStr = useMemo(() => getLocalDateString(), []);
+  const addedToday = useMemo(
+    () => applicationsWithDrafts.filter((app) => (app.date || "").startsWith(todayStr)).length,
+    [applicationsWithDrafts, todayStr]
+  );
+
+  const metrics = useMemo(() => ({
     total: applicationsWithDrafts.length,
     interviewing: applicationsWithDrafts.filter((app) => app.stage === "Interview" && app.status === "Open").length,
     hadInterview: applicationsWithDrafts.filter((app) => app.stage === "Interview" || app.stage === "Offer" || !!app.interview_date).length,
     offers: applicationsWithDrafts.filter((app) => app.stage === "Offer" && app.status === "Open").length,
     rejected: applicationsWithDrafts.filter((app) => app.status === "Rejected").length,
-  };
+  }), [applicationsWithDrafts]);
 
   const getStageBadgeClass = (stage: ApplicationStage) => {
     switch (stage) {
@@ -252,6 +271,13 @@ export const JobTrackerPage: React.FC = () => {
         activeReminders={reminderProps.activeReminders}
         todayStrForReminders={getLocalDateString()}
         handleDeleteReminder={reminderProps.handleDeleteReminder}
+        onEditReminder={(rem) => {
+          reminderProps.setReminderAppId(rem.applicationId);
+          reminderProps.setReminderDate(rem.date);
+          reminderProps.setReminderTime(rem.time || "");
+          reminderProps.setReminderNote(rem.note || "");
+          reminderProps.setReminderModalOpen(true);
+        }}
       />
 
       <EmailSyncResults {...gmailSyncProps} />
@@ -382,6 +408,13 @@ export const JobTrackerPage: React.FC = () => {
               isSavingDrafts={isSavingDrafts}
               getStageBadgeClass={getStageBadgeClass}
               getStatusColorClass={getStatusColorClass}
+              paginatedApplications={paginatedApplications}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
+              totalPages={totalPages}
+              totalFilteredCount={totalFilteredCount}
             />
           </>
         )}
@@ -436,6 +469,10 @@ export const JobTrackerPage: React.FC = () => {
         setReminderAppId={reminderProps.setReminderAppId}
         reminderDate={reminderProps.reminderDate}
         setReminderDate={reminderProps.setReminderDate}
+        reminderTime={reminderProps.reminderTime}
+        setReminderTime={reminderProps.setReminderTime}
+        reminderNote={reminderProps.reminderNote}
+        setReminderNote={reminderProps.setReminderNote}
         onConfirm={reminderProps.handleSaveReminder}
       />
     </div>

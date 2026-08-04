@@ -155,10 +155,11 @@ export const ManualAddForm: React.FC<ManualAddFormProps> = ({
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-100 block">Datum</label>
               <input
-                type="date"
+                type="text"
                 value={manualDate}
                 onChange={(e) => setManualDate(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
+                placeholder="TT.MM.JJJJ"
+                className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-[#1E293B] dark:text-white font-semibold placeholder-slate-400 focus:outline-none focus:border-[#2563EB] dark:focus:border-blue-500"
               />
             </div>
           </div>

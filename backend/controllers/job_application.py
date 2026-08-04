@@ -44,7 +44,9 @@ def create_application(db: Session, app_data: JobApplicationCreate, table_name: 
         emailId=app_data.emailId,
         notes=app_data.notes,
         source_file=app_data.source_file if app_data.source_file else table_name,
-        interview_date=app_data.interview_date
+        interview_date=app_data.interview_date,
+        interview_time=app_data.interview_time,
+        interview_note=app_data.interview_note
     )
     db.add(db_app)
     db.commit()

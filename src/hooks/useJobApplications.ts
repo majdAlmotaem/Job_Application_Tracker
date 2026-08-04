@@ -17,6 +17,7 @@ export interface UseJobApplicationsProps {
   promotePendingTab: () => void;
   applications: JobApplication[];
   setApplications: React.Dispatch<React.SetStateAction<JobApplication[]>>;
+  onInterviewOpenTrigger?: (appId: string) => void;
 }
 
 export const useJobApplications = ({
@@ -28,6 +29,7 @@ export const useJobApplications = ({
   promotePendingTab,
   applications,
   setApplications,
+  onInterviewOpenTrigger,
 }: UseJobApplicationsProps) => {
   const [isFetchingApps, setIsFetchingApps] = useState(false);
   const [draftChanges, setDraftChanges] = useState<Record<string, Partial<JobApplication>>>({});
@@ -73,6 +75,13 @@ export const useJobApplications = ({
       };
     });
     triggerToast("success", "Stufe-Entwurf geändert.");
+
+    // Trigger Requirement 4: Auto-open appointment modal if stage === "Interview" and status === "Open"
+    const currentApp = applications.find((a) => a.id === rowId);
+    const effectiveStatus = draftChanges[rowId]?.status ?? currentApp?.status ?? "Open";
+    if (newStage === "Interview" && effectiveStatus === "Open") {
+      onInterviewOpenTrigger?.(rowId);
+    }
   };
 
   const handleUpdateStatusDraft = (rowId: string, newStatus: ApplicationStatus) => {
@@ -87,6 +96,13 @@ export const useJobApplications = ({
       };
     });
     triggerToast("success", "Status-Entwurf geändert.");
+
+    // Trigger Requirement 4: Auto-open appointment modal if status === "Open" and stage === "Interview"
+    const currentApp = applications.find((a) => a.id === rowId);
+    const effectiveStage = draftChanges[rowId]?.stage ?? currentApp?.stage ?? "Applied";
+    if (newStatus === "Open" && effectiveStage === "Interview") {
+      onInterviewOpenTrigger?.(rowId);
+    }
   };
 
   const updateDraftField = (id: string, field: string, value: string) => {
@@ -226,6 +242,12 @@ export const useJobApplications = ({
       triggerToast("success", "Manuell hinzugefügt.");
       promotePendingTab();
       await loadTables();
+
+      // Trigger Requirement 4: Auto open reminder modal if new app has stage === "Interview" & status === "Open"
+      if (app.stage === "Interview" && app.status === "Open") {
+        onInterviewOpenTrigger?.(savedApp.id);
+      }
+
       return true;
     } catch (err: any) {
       triggerToast("error", "Fehler beim Speichern.");
