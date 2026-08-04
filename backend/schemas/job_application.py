@@ -16,6 +16,8 @@ class JobApplicationBase(BaseModel):
     notes: Optional[str] = None
     source_file: Optional[str] = "Default"
     interview_date: Optional[str] = None
+    interview_time: Optional[str] = None
+    interview_note: Optional[str] = None
 
 class JobApplicationCreate(JobApplicationBase):
     pass
@@ -35,6 +37,8 @@ class JobApplicationUpdate(BaseModel):
     notes: Optional[str] = None
     source_file: Optional[str] = None
     interview_date: Optional[str] = None
+    interview_time: Optional[str] = None
+    interview_note: Optional[str] = None
 
 class JobApplicationResponse(JobApplicationBase):
     id: str

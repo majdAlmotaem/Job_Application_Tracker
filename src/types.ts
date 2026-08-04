@@ -16,6 +16,8 @@ export interface JobApplication {
   emailId?: string;
   source_file?: string;
   interview_date?: string;
+  interview_time?: string;
+  interview_note?: string;
 }
 
 export interface EmailUpdate {
@@ -95,6 +97,8 @@ export interface InterviewReminder {
   applicationId: string;
   company: string;
   date: string;
+  time?: string;
+  note?: string;
   tableName: string;
 }
 

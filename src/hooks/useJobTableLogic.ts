@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { parseGermanDate } from '../utils/dateFormatter';
 import { JobApplication } from '../types';
 
 interface UseJobTableLogicProps {
@@ -19,6 +20,10 @@ export function useJobTableLogic({
   const [filterStage, setFilterStage] = useState<string>("All");
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [sortType, setSortType] = useState<string>("date_desc");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // 2. Double click cell editing states
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -76,10 +81,7 @@ export function useJobTableLogic({
     triggerToast("success", "Änderung im Entwurf gespeichert.");
   };
 
-  const parseDateForSort = (dateStr: any) => {
-    const parsed = Date.parse(String(dateStr));
-    return isNaN(parsed) ? 0 : parsed;
-  };
+
 
   const filteredAndSortedApplications = useMemo(() => {
     const applicationsWithDrafts = applications.map((app) => {
@@ -101,8 +103,8 @@ export function useJobTableLogic({
         return matchesSearch && matchesStage && matchesStatus;
       })
       .sort((a, b) => {
-        if (sortType === "date_desc") return parseDateForSort(b.date) - parseDateForSort(a.date);
-        if (sortType === "date_asc") return parseDateForSort(a.date) - parseDateForSort(b.date);
+        if (sortType === "date_desc") return parseGermanDate(b.date) - parseGermanDate(a.date);
+        if (sortType === "date_asc") return parseGermanDate(a.date) - parseGermanDate(b.date);
         if (sortType === "company_asc") return a.company.localeCompare(b.company);
         if (sortType === "company_desc") return b.company.localeCompare(a.company);
         if (sortType === "stage_asc") return a.stage.localeCompare(b.stage);
@@ -110,6 +112,22 @@ export function useJobTableLogic({
         return 0;
       });
   }, [applications, draftChanges, searchTerm, filterStage, filterStatus, sortType]);
+
+  // Reset to page 1 when filters, search, or sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStage, filterStatus, sortType]);
+
+  const totalFilteredCount = filteredAndSortedApplications.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / pageSize));
+
+  // Clamp currentPage if it exceeds totalPages (e.g., after deletion)
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedApplications = useMemo(() => {
+    const startIndex = (safePage - 1) * pageSize;
+    return filteredAndSortedApplications.slice(startIndex, startIndex + pageSize);
+  }, [filteredAndSortedApplications, safePage, pageSize]);
 
   return {
     searchTerm, setSearchTerm,
@@ -119,6 +137,13 @@ export function useJobTableLogic({
     editingCell, editingValue, setEditingValue,
     startEditing, cancelEditing, saveEditing,
     columnWidths, startResize,
-    filteredAndSortedApplications
+    filteredAndSortedApplications,
+    paginatedApplications,
+    currentPage: safePage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalPages,
+    totalFilteredCount,
   };
 }

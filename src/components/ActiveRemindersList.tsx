@@ -1,11 +1,13 @@
 import React from "react";
-import { Clock, Trash2 } from "lucide-react";
+import { Clock, Trash2, FileText, Pencil } from "lucide-react";
 import { InterviewReminder } from "../types";
+import { formatGermanDateTime } from "../utils/dateFormatter";
 
 interface ActiveRemindersListProps {
   activeReminders: InterviewReminder[];
   todayStrForReminders: string;
   handleDeleteReminder: (id: string) => void;
+  onEditReminder?: (reminder: InterviewReminder) => void;
   variant?: "tracker" | "landing";
 }
 
@@ -13,6 +15,7 @@ export const ActiveRemindersList: React.FC<ActiveRemindersListProps> = ({
   activeReminders,
   todayStrForReminders,
   handleDeleteReminder,
+  onEditReminder,
   variant = "tracker",
 }) => {
   const isLanding = variant === "landing";
@@ -64,27 +67,42 @@ export const ActiveRemindersList: React.FC<ActiveRemindersListProps> = ({
 
       <div className={listContainerClass}>
         {activeReminders.map((rem) => {
-          const today = new Date(todayStrForReminders);
-          const interviewDate = new Date(rem.date);
+          const parseToDate = (str: string) => {
+            if (!str) return new Date();
+            if (str.includes(".")) {
+              const [d, m, y] = str.split(".");
+              return new Date(Number(y), Number(m) - 1, Number(d));
+            }
+            return new Date(str);
+          };
+          const today = parseToDate(todayStrForReminders);
+          const interviewDate = parseToDate(rem.date);
           const diffTime = interviewDate.getTime() - today.getTime();
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           let badgeText = `In ${diffDays} Tagen`;
-          if (diffDays === 0) badgeText = "Heute!";
+          if (diffDays <= 0) badgeText = "Heute!";
           if (diffDays === 1) badgeText = "Morgen!";
 
           return (
             <div
               key={rem.id}
-              className="bg-slate-950/40 border border-white/5 hover:border-white/10 rounded-xl p-3.5 flex items-center justify-between gap-3 group/item transition"
+              onClick={() => onEditReminder?.(rem)}
+              className={`bg-slate-950/40 border border-white/5 hover:border-amber-500/30 rounded-xl p-3.5 flex items-center justify-between gap-3 group/item transition ${onEditReminder ? 'cursor-pointer' : ''}`}
             >
               <div className="space-y-1.5 min-w-0">
                 <div className="text-xs font-bold text-slate-100 truncate">{rem.company}</div>
                 <div className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
                   <span>Termin:</span>
                   <span className="font-bold text-slate-200">
-                    {new Date(rem.date).toLocaleDateString("de-DE")}
+                    {formatGermanDateTime(rem.date, rem.time)}
                   </span>
                 </div>
+                {rem.note && (
+                  <div className="text-[10px] text-slate-400 flex items-start gap-1 mt-1 bg-slate-900/60 p-1.5 rounded border border-white/5">
+                    <FileText className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                    <span className="italic line-clamp-2">{rem.note}</span>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span
@@ -96,9 +114,19 @@ export const ActiveRemindersList: React.FC<ActiveRemindersListProps> = ({
                 >
                   {badgeText}
                 </span>
+                {onEditReminder && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onEditReminder(rem); }}
+                    className="opacity-0 group-hover/item:opacity-100 focus:opacity-100 transition-opacity p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-amber-400 border-none cursor-pointer bg-transparent"
+                    title="Termin bearbeiten"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => handleDeleteReminder(rem.id)}
+                  onClick={(e) => { e.stopPropagation(); handleDeleteReminder(rem.id); }}
                   className="opacity-0 group-hover/item:opacity-100 focus:opacity-100 transition-opacity p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-rose-450 border-none cursor-pointer bg-transparent"
                   title="Termin entfernen"
                 >

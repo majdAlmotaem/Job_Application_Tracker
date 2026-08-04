@@ -1,7 +1,8 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Clock } from "lucide-react";
+import { Clock, Calendar, FileText } from "lucide-react";
 import { JobApplication } from "../../types";
+
 
 interface ReminderModalProps {
   isOpen: boolean;
@@ -11,6 +12,10 @@ interface ReminderModalProps {
   setReminderAppId: (val: string) => void;
   reminderDate: string;
   setReminderDate: (val: string) => void;
+  reminderTime: string;
+  setReminderTime: (val: string) => void;
+  reminderNote: string;
+  setReminderNote: (val: string) => void;
   onConfirm: () => void;
 }
 
@@ -22,8 +27,20 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
   setReminderAppId,
   reminderDate,
   setReminderDate,
+  reminderTime,
+  setReminderTime,
+  reminderNote,
+  setReminderNote,
   onConfirm,
 }) => {
+  // Requirement 3: Only companies where stage === "Interview" AND status === "Open"
+  const eligibleApps = applications.filter(
+    (app) => app.stage === "Interview" && app.status === "Open"
+  );
+
+  const selectedApp = applications.find((app) => app.id === reminderAppId);
+  const isEditing = !!(selectedApp?.interview_date);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -32,36 +49,91 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="bg-slate-900 border border-white/5 rounded-xl max-w-sm w-full shadow-2xl p-6 text-left"
+            className="bg-slate-900 border border-white/10 rounded-2xl max-w-md w-full shadow-2xl p-6 text-left"
           >
             <h3 className="text-base font-bold text-slate-100 m-0 mb-4 flex items-center gap-2">
               <Clock className="w-5 h-5 text-amber-500 shrink-0" />
-              <span>Termin hinzufügen</span>
+              <span>Interview-Termin {isEditing ? "bearbeiten" : "hinzufügen"}</span>
             </h3>
 
             <div className="space-y-4">
+              {/* Unternehmen Selection (Filter: stage === Interview && status === Open) */}
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-slate-100 block mb-1">Unternehmen</label>
-                <select
-                  value={reminderAppId}
-                  onChange={(e) => setReminderAppId(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-blue-500 font-semibold cursor-pointer"
-                >
-                  {applications.filter((app) => app.stage === "Interview").map((app) => (
-                    <option key={app.id} value={app.id} className="bg-slate-950 text-white font-semibold">
-                      {app.company} ({app.role})
-                    </option>
-                  ))}
-                </select>
+                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                  Unternehmen (Nur Stufe: Interview & Status: Open)
+                </label>
+                {eligibleApps.length > 0 ? (
+                  <select
+                    value={reminderAppId}
+                    onChange={(e) => setReminderAppId(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-amber-500 font-semibold cursor-pointer"
+                  >
+                    <option value="" disabled>-- Unternehmen auswählen --</option>
+                    {eligibleApps.map((app) => (
+                      <option key={app.id} value={app.id} className="bg-slate-950 text-white font-semibold">
+                        {app.company} ({app.role})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="text-xs text-amber-400/90 bg-amber-950/20 border border-amber-900/40 p-3 rounded-lg">
+                    Keine Bewerbungen mit Stufe "Interview" und Status "Open" vorhanden.
+                  </div>
+                )}
               </div>
 
+              {/* Datum & Uhrzeit Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Datum */}
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-amber-400" />
+                    <span>Datum (TT.MM.JJJJ)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={reminderDate}
+                    onChange={(e) => setReminderDate(e.target.value)}
+                    placeholder="z. B. 15.08.2026"
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 font-semibold"
+                  />
+                </div>
+
+                {/* Uhrzeit */}
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-amber-400" />
+                    <span>Uhrzeit</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="14:30"
+                    maxLength={5}
+                    value={reminderTime}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/[^\d]/g, "");
+                      if (val.length > 2) {
+                        val = val.substring(0, 2) + ":" + val.substring(2, 4);
+                      }
+                      setReminderTime(val);
+                    }}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Notiz */}
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-slate-100 block mb-1">Datum</label>
-                <input
-                  type="date"
-                  value={reminderDate}
-                  onChange={(e) => setReminderDate(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-blue-500 font-semibold"
+                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1 flex items-center gap-1">
+                  <FileText className="w-3 h-3 text-amber-400" />
+                  <span>Notiz / Link / Vorbereitung</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={reminderNote}
+                  onChange={(e) => setReminderNote(e.target.value)}
+                  placeholder="z. B. Teams-Meeting Link, Ansprechpartner, Gehaltsvorstellung..."
+                  className="w-full bg-slate-950 border border-white/10 rounded-lg p-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 font-medium resize-none"
                 />
               </div>
             </div>
@@ -78,9 +150,9 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
                 type="button"
                 onClick={onConfirm}
                 disabled={!reminderAppId || !reminderDate}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 font-semibold px-4 py-2 rounded-lg text-xs transition cursor-pointer text-white border-none"
+                className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 font-bold px-4 py-2 rounded-lg text-xs transition cursor-pointer text-slate-950 border-none"
               >
-                Speichern
+                {isEditing ? "Termin Aktualisieren" : "Termin Speichern"}
               </button>
             </div>
           </motion.div>
