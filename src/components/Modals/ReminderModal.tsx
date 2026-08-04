@@ -106,10 +106,18 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
                     <span>Uhrzeit</span>
                   </label>
                   <input
-                    type="time"
+                    type="text"
+                    placeholder="14:30"
+                    maxLength={5}
                     value={reminderTime}
-                    onChange={(e) => setReminderTime(e.target.value)}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-amber-500 font-semibold"
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/[^\d]/g, "");
+                      if (val.length > 2) {
+                        val = val.substring(0, 2) + ":" + val.substring(2, 4);
+                      }
+                      setReminderTime(val);
+                    }}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 font-semibold"
                   />
                 </div>
               </div>
