@@ -1,6 +1,7 @@
 import React from "react";
 import { Table, RefreshCw, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { JobApplication, ApplicationStage, ApplicationStatus } from "../types";
+import { formatDisplayDate } from "../utils/dateFormatter";
 
 
 interface JobTableProps {
@@ -369,7 +370,7 @@ export const JobTable: React.FC<JobTableProps> = ({
                       className="w-full bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 px-2 py-1 rounded-md text-xs"
                     />
                   ) : (
-                    draftChanges[app.id]?.date ?? app.date ?? "-"
+                    formatDisplayDate(draftChanges[app.id]?.date ?? app.date)
                   )}
                 </td>
 

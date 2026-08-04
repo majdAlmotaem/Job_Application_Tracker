@@ -163,11 +163,10 @@ export async function searchGmailMessages(
         if (dateRaw) {
           const parsedDate = new Date(dateRaw);
           if (!isNaN(parsedDate.getTime())) {
-            dateFormatted = parsedDate.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            });
+            const day = String(parsedDate.getDate()).padStart(2, "0");
+            const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+            const year = parsedDate.getFullYear();
+            dateFormatted = `${day}.${month}.${year}`;
           }
         }
       } catch {
