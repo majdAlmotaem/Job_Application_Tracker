@@ -1,6 +1,9 @@
+# pyrefly: ignore [missing-import]
 import pytest
 from fastapi.testclient import TestClient
+# pyrefly: ignore [missing-import]
 from sqlalchemy import create_engine
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import sessionmaker
 
 # Hier importierst du deine FastAPI-App und die Base für die Datenbank

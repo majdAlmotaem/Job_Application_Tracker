@@ -21,7 +21,7 @@ def test_create_and_read_job_application(client):
     # ==========================================
     # 3. ASSERT (Prüfen)
     # ==========================================
-    assert response_post.status_code == 200 # Oder 201, je nachdem wie dein Router konfiguriert ist
+    assert response_post.status_code == 201 # 201 Created ist der korrekte Statuscode für einen POST-Request
     
     data = response_post.json()
     assert data["company"] == "MaxMuster GmbH"
