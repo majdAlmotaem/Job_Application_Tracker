@@ -2,7 +2,15 @@ import { useState } from "react";
 import { User } from "firebase/auth";
 import { JobApplication, EmailUpdate } from "../types";
 import { searchGmailMessages } from "../services/gmailService";
-import { isSimilarCompany, isFuzzyDuplicate, getLocalDateString } from "../utils/matchingLogic";
+import {
+  isSimilarCompany,
+  isSameCompany,
+  isSameRole,
+  isUnknownValue,
+  isDuplicateApplication,
+  isFuzzyDuplicate,
+  getLocalDateString,
+} from "../utils/matchingLogic";
 import { useGlobalTask } from "../context/GlobalTaskContext";
 
 export interface UseGmailSyncProps {
@@ -84,9 +92,15 @@ export const useGmailSync = ({
   const gmailQuery =
     'Bewerbung OR Interview OR Absage OR Vertrag OR Stelle OR Softwareentwickler OR Webentwickler OR candidate OR "vielen Dank für Ihre Bewerbung"';
 
-  const getCompanyMatch = (companyName: string) => {
-    if (!companyName) return null;
-    return applications.find((app) => isSimilarCompany(app.company, companyName));
+  const getCompanyMatch = (companyName: string, role?: string) => {
+    if (!companyName || isUnknownValue(companyName)) return null;
+    if (role && !isUnknownValue(role)) {
+      const matchWithRole = applications.find(
+        (app) => isSameCompany(app.company, companyName) && isSameRole(app.role, role)
+      );
+      if (matchWithRole) return matchWithRole;
+    }
+    return applications.find((app) => isSameCompany(app.company, companyName)) || null;
   };
 
   const handleScanInboxAndAnalyze = async () => {
@@ -211,9 +225,15 @@ export const useGmailSync = ({
         if (!up.isJobRelated) return false;
         if (applications.some((app) => app.emailId === up.emailId)) return false;
         if (dismissedList.includes(up.emailId)) return false;
-        const fuzzyDuplicate = applications.find((app) => isFuzzyDuplicate(app, up));
-        if (fuzzyDuplicate && up.classification !== "Statuswechsel") return false;
-        if (fuzzyDuplicate && fuzzyDuplicate.stage.toLowerCase() === up.stage.toLowerCase() && fuzzyDuplicate.status.toLowerCase() === up.status.toLowerCase()) return false;
+        const duplicateApp = applications.find((app) => isDuplicateApplication(app, up));
+        if (duplicateApp && up.classification !== "Statuswechsel") return false;
+        if (
+          duplicateApp &&
+          duplicateApp.stage.toLowerCase() === up.stage.toLowerCase() &&
+          duplicateApp.status.toLowerCase() === up.status.toLowerCase()
+        ) {
+          return false;
+        }
         return true;
       });
 
@@ -236,7 +256,7 @@ export const useGmailSync = ({
   const handleAcceptEmailChange = async (update: EmailUpdate) => {
     setSyncingEmailId(update.emailId);
     try {
-      const match = getCompanyMatch(update.company);
+      const match = getCompanyMatch(update.company, update.role);
       if (update.classification === "Statuswechsel" && match) {
         const response = await fetch(
           `/api/applications/${match.id}?table_name=${encodeURIComponent(selectedTable)}`,

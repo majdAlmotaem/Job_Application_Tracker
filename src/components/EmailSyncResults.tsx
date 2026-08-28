@@ -29,7 +29,7 @@ interface EmailSyncResultsProps {
   handleAcceptEmailChange: (update: EmailUpdate) => void;
   handleAcceptAll: (updates: EmailUpdate[]) => void;
   handleRejectAll: (updates: EmailUpdate[]) => void;
-  getCompanyMatch: (companyName: string) => JobApplication | null;
+  getCompanyMatch: (companyName: string, role?: string) => JobApplication | null;
 }
 
 export const EmailSyncResults: React.FC<EmailSyncResultsProps> = ({
@@ -53,7 +53,7 @@ export const EmailSyncResults: React.FC<EmailSyncResultsProps> = ({
 
   const renderEmailUpdateRow = (update: EmailUpdate, isStatuswechsel: boolean) => {
     const isExpanded = expandedEmailIds.includes(update.emailId);
-    const dupMatch = getCompanyMatch(update.company);
+    const dupMatch = getCompanyMatch(update.company, update.role);
 
     const getEmailStageBadge = (stageStr: string) => {
       switch (stageStr) {
