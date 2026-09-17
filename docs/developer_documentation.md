@@ -143,10 +143,10 @@ Führen Sie im Stammverzeichnis folgenden Befehl aus:
 npm run dev
 ```
 Dieser Befehl startet **gleichzeitig**:
-- Das Frontend (Vite) auf `http://localhost:5173`
+- Das Frontend (Vite) auf `http://localhost:3000`
 - Das Backend (FastAPI) auf `http://127.0.0.1:8000`
 
-Das Frontend leitet alle API-Anfragen an `/api/*` automatisch an den Python-Server weiter. Öffnen Sie einfach `http://localhost:5173` im Browser, um die Anwendung zu nutzen!
+Das Frontend leitet alle API-Anfragen an `/api/*` automatisch an den Python-Server weiter. Öffnen Sie einfach `http://localhost:3000` im Browser! Nach dem Start können Sie lokale Modelle (Ollama) oder Cloud-Modelle (Gemini, OpenAI) bequem in den Einstellungen unter *KI-Modelle* konfigurieren.
 
 ### 6. Code compilieren und Typen prüfen
 Um sicherzustellen, dass keine TypeScript-Fehler vorliegen:
