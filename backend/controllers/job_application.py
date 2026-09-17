@@ -16,7 +16,7 @@ def get_applications(db: Session, table_name: str = "job_applications") -> List[
     """
     Retrieves all job applications from the database for the specified table, ordered by ID descending.
     """
-    model = get_job_application_model(table_name, db.bind)
+    model = get_job_application_model(table_name, None, create_table=False)
     apps = db.query(model).order_by(model.id.desc()).all()
     logger.debug(f"📂 [DB] Fetched {len(apps)} applications from table '{table_name}'.")
     return apps
@@ -25,7 +25,7 @@ def create_application(db: Session, app_data: JobApplicationCreate, table_name: 
     """
     Creates a new job application record in the specified database table.
     """
-    model = get_job_application_model(table_name, db.bind)
+    model = get_job_application_model(table_name, db.bind, create_table=True)
     logger.info(
         f"📂 [DB] Creating new application in table '{table_name}': "
         f"Company='{app_data.company}', Role='{app_data.role}', Stage='{app_data.stage}', Status='{app_data.status}', emailId='{app_data.emailId}'"
@@ -48,17 +48,22 @@ def create_application(db: Session, app_data: JobApplicationCreate, table_name: 
         interview_time=app_data.interview_time,
         interview_note=app_data.interview_note
     )
-    db.add(db_app)
-    db.commit()
-    db.refresh(db_app)
-    logger.info(f"📂 [DB] Successfully created application ID={db_app.id} in table '{table_name}'.")
-    return db_app
+    try:
+        db.add(db_app)
+        db.commit()
+        db.refresh(db_app)
+        logger.info(f"📂 [DB] Successfully created application ID={db_app.id} in table '{table_name}'.")
+        return db_app
+    except Exception as e:
+        db.rollback()
+        logger.error(f"📂 [DB] Failed to create application in table '{table_name}': {e}")
+        raise e
 
 def update_application(db: Session, app_id: int, app_data: JobApplicationUpdate, table_name: str = "job_applications") -> Any:
     """
     Updates an existing job application record in the specified database table.
     """
-    model = get_job_application_model(table_name, db.bind)
+    model = get_job_application_model(table_name, db.bind, create_table=False)
     db_app = db.query(model).filter(model.id == app_id).first()
     if not db_app:
         logger.warning(f"📂 [DB] Update failed: Application ID={app_id} not found in table '{table_name}'.")
@@ -71,26 +76,36 @@ def update_application(db: Session, app_id: int, app_data: JobApplicationUpdate,
     for key, value in update_dict.items():
         setattr(db_app, key, value)
 
-    db.commit()
-    db.refresh(db_app)
-    logger.info(f"📂 [DB] Successfully updated application ID={app_id} in table '{table_name}'. After Update: Stage='{db_app.stage}', Status='{db_app.status}'")
-    return db_app
+    try:
+        db.commit()
+        db.refresh(db_app)
+        logger.info(f"📂 [DB] Successfully updated application ID={app_id} in table '{table_name}'. After Update: Stage='{db_app.stage}', Status='{db_app.status}'")
+        return db_app
+    except Exception as e:
+        db.rollback()
+        logger.error(f"📂 [DB] Failed to update application ID={app_id} in table '{table_name}': {e}")
+        raise e
 
 def delete_application(db: Session, app_id: int, table_name: str = "job_applications") -> bool:
     """
     Deletes a single job application record by ID from the specified database table.
     """
-    model = get_job_application_model(table_name, db.bind)
+    model = get_job_application_model(table_name, db.bind, create_table=False)
     db_app = db.query(model).filter(model.id == app_id).first()
     if not db_app:
         logger.warning(f"📂 [DB] Delete failed: Application ID={app_id} not found in table '{table_name}'.")
         return False
         
     logger.info(f"📂 [DB] Deleting application ID={app_id} in table '{table_name}': Company='{db_app.company}', Role='{db_app.role}'")
-    db.delete(db_app)
-    db.commit()
-    logger.info(f"📂 [DB] Successfully deleted application ID={app_id} from table '{table_name}'.")
-    return True
+    try:
+        db.delete(db_app)
+        db.commit()
+        logger.info(f"📂 [DB] Successfully deleted application ID={app_id} from table '{table_name}'.")
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"📂 [DB] Failed to delete application ID={app_id} from table '{table_name}': {e}")
+        raise e
 
 def bulk_delete_applications(db: Session, app_ids: List[int], table_name: str = "job_applications") -> int:
     """
@@ -99,19 +114,27 @@ def bulk_delete_applications(db: Session, app_ids: List[int], table_name: str = 
     if not app_ids:
         return 0
         
-    model = get_job_application_model(table_name, db.bind)
+    model = get_job_application_model(table_name, db.bind, create_table=False)
     logger.info(f"📂 [DB] Bulk deleting application IDs={app_ids} in table '{table_name}'")
-    deleted_count = db.query(model).filter(model.id.in_(app_ids)).delete(synchronize_session=False)
-    db.commit()
-    logger.info(f"📂 [DB] Successfully bulk deleted {deleted_count} applications from table '{table_name}'.")
-    return deleted_count
+    try:
+        deleted_count = db.query(model).filter(model.id.in_(app_ids)).delete(synchronize_session=False)
+        db.commit()
+        logger.info(f"📂 [DB] Successfully bulk deleted {deleted_count} applications from table '{table_name}'.")
+        return deleted_count
+    except Exception as e:
+        db.rollback()
+        logger.error(f"📂 [DB] Failed to bulk delete applications from table '{table_name}': {e}")
+        raise e
+
+SYSTEM_TABLES = {"saved_searches", "llm_providers"}
 
 def get_tables(db: Session) -> List[str]:
     """
-    Returns the list of all available user tables in the SQLite database.
+    Returns the list of all available user tables in the SQLite database,
+    excluding internal system tables (saved_searches, llm_providers, sqlite_*).
     """
-    result = db.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'saved_searches'"))
-    tables = [row[0] for row in result.fetchall()]
+    result = db.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"))
+    tables = [row[0] for row in result.fetchall() if row[0] not in SYSTEM_TABLES]
     return tables
 
 def delete_table(db: Session, table_name: str) -> Dict[str, str]:
@@ -120,6 +143,9 @@ def delete_table(db: Session, table_name: str) -> Dict[str, str]:
     table, clears all its records instead of dropping it.
     """
     sanitized = sanitize_table_name(table_name)
+    if sanitized in SYSTEM_TABLES:
+        raise ValueError(f"Systemtabelle '{sanitized}' darf nicht gelöscht werden.")
+
     if sanitized == "job_applications":
         try:
             logger.info("📂 [DB] Request to clear default table 'job_applications'")
@@ -153,6 +179,10 @@ def rename_table(db: Session, table_name: str, new_name: str) -> Dict[str, str]:
     sanitized_new = sanitize_table_name(new_name)
 
     logger.info(f"📂 [DB] Request to rename table '{table_name}' to '{new_name}'")
+
+    if sanitized_old in SYSTEM_TABLES or sanitized_new in SYSTEM_TABLES:
+        logger.warning(f"📂 [DB] Rename aborted: System table cannot be renamed")
+        raise ValueError("Systemtabellen können nicht umbenannt werden")
 
     if sanitized_old == "job_applications":
         logger.warning("📂 [DB] Rename aborted: Cannot rename the default table 'job_applications'")

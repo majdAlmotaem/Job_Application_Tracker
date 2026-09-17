@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { User } from "firebase/auth";
 import { EmailUpdate, JobSearchResultItem, JobSearchCriteria, JobApplication } from "../types";
-import { initAuth, googleSignIn, googleSignOut } from "../services/googleAuth";
+import { initAuth, googleSignIn, googleSignOut, getStoredUser, auth } from "../services/googleAuth";
 import { useSavedSearches, SavedSearch } from "../hooks/useSavedSearches";
 
 interface PendingTab {
@@ -131,8 +131,16 @@ export const GlobalTaskProvider: React.FC<{ children: ReactNode }> = ({ children
   const [emailUpdates, setEmailUpdates] = useState<EmailUpdate[]>([]);
 
   // Auth States
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    return (getStoredUser() as any) || auth.currentUser || null;
+  });
+  const [token, setToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("syncsheet_google_access_token") || null;
+    } catch {
+      return null;
+    }
+  });
   const [needsAuth, setNeedsAuth] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -210,8 +218,10 @@ export const GlobalTaskProvider: React.FC<{ children: ReactNode }> = ({ children
       if (!response.ok) throw new Error("Failed to load tables");
       const tables: string[] = await response.json();
       
-      const customTables = tables.filter((t) => t !== "job_applications");
-      setAvailableTables(tables);
+      const INTERNAL_TABLES = ["job_applications", "saved_searches", "llm_providers"];
+      const filteredTables = tables.filter((t) => !["saved_searches", "llm_providers"].includes(t));
+      const customTables = filteredTables.filter((t) => !INTERNAL_TABLES.includes(t));
+      setAvailableTables(filteredTables);
       
       setSelectedTable((prev) => {
         if (customTables.length > 0) {
@@ -241,12 +251,39 @@ export const GlobalTaskProvider: React.FC<{ children: ReactNode }> = ({ children
         setNeedsAuth(false);
       },
       () => {
-        setUser(null);
-        setToken(null);
+        const storedToken = localStorage.getItem("syncsheet_google_access_token");
+        if (!storedToken) {
+          setUser(null);
+          setToken(null);
+        }
       }
     );
     return () => unsubscribe();
   }, []);
+
+  // Automatically load applications for selected table across all pages (Dashboard, Tracker, etc.)
+  useEffect(() => {
+    if (!selectedTable || pendingTabs.some((pt) => pt.key === selectedTable)) {
+      setApplications([]);
+      return;
+    }
+    let isMounted = true;
+    const fetchApps = async () => {
+      try {
+        const response = await fetch(`/api/applications?table_name=${encodeURIComponent(selectedTable)}`);
+        if (response.ok && isMounted) {
+          const apps = await response.json();
+          setApplications(apps);
+        }
+      } catch (err) {
+        console.error("Error loading applications in GlobalTaskContext:", err);
+      }
+    };
+    fetchApps();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedTable, pendingTabs]);
 
   // Dismiss notification toast after 5s
   useEffect(() => {

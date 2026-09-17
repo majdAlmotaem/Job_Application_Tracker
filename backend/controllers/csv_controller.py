@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from typing import Dict, Any
+from fastapi import HTTPException, status
 from backend.models.job_application import get_job_application_model
 from backend.services.csv_service import parse_csv_content, generate_csv_content, is_fuzzy_duplicate
 
@@ -13,7 +14,7 @@ def upload_csv(db: Session, csv_content: str, table_name: str) -> Dict[str, int]
         return {"imported": 0, "skipped": 0}
 
     # Fetch the dynamic model class for this table, creating the table if it doesn't exist
-    model = get_job_application_model(table_name, db.bind)
+    model = get_job_application_model(table_name, db.bind, create_table=True)
 
     # We only check for duplicate records within the current upload itself to avoid inserting the same row twice
     existing_dicts = []
@@ -35,6 +36,7 @@ def upload_csv(db: Session, csv_content: str, table_name: str) -> Dict[str, int]
                 company=record["company"],
                 role=record["role"],
                 status=record["status"],
+                stage=record.get("stage", "Applied"),
                 date=record["date"],
                 location=record["location"],
                 anstellungsart=record["anstellungsart"],
@@ -54,7 +56,14 @@ def upload_csv(db: Session, csv_content: str, table_name: str) -> Dict[str, int]
             imported_count += 1
 
     if imported_count > 0:
-        db.commit()
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Fehler beim Speichern der importierten Daten: {str(e)}"
+            )
 
     return {"imported": imported_count, "skipped": skipped_count}
 

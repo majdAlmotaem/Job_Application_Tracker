@@ -53,22 +53,23 @@ def sanitize_table_name(name: str) -> str:
         
     return sanitized.lower()
 
-def get_job_application_model(table_name: str, bind=None):
+def get_job_application_model(table_name: str, bind=None, create_table: bool = False):
     """
     Dynamically constructs a SQLAlchemy model class for a specific table name.
-    If the table does not exist in SQLite, it will automatically be created.
+    Table DDL is only executed when create_table is True, preventing redundant
+    read-time schema checks and SQLite write locks.
     """
     sanitized = sanitize_table_name(table_name)
     
     if sanitized in _dynamic_models:
         model_cls = _dynamic_models[sanitized]
-        if bind:
+        if create_table and bind:
             model_cls.__table__.create(bind=bind, checkfirst=True)
         return model_cls
         
     if sanitized == "job_applications":
         _dynamic_models[sanitized] = JobApplicationModel
-        if bind:
+        if create_table and bind:
             JobApplicationModel.__table__.create(bind=bind, checkfirst=True)
         return JobApplicationModel
 
@@ -96,7 +97,7 @@ def get_job_application_model(table_name: str, bind=None):
 
     _dynamic_models[sanitized] = DynamicJobApplication
     
-    if bind:
+    if create_table and bind:
         DynamicJobApplication.__table__.create(bind=bind, checkfirst=True)
         
     return DynamicJobApplication

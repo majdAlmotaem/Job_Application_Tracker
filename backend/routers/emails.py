@@ -1,8 +1,11 @@
 import logging
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import List, Optional
-from backend.services.gemini import analyze_emails as service_analyze_emails
+from sqlalchemy.orm import Session
+from backend.database import get_db
+from backend.models.llm_provider import LLMProviderModel
+from backend.services.llm import analyze_emails as service_analyze_emails, LLMConfig
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +23,38 @@ class EmailPayload(BaseModel):
 
 class EmailAnalysisRequest(BaseModel):
     emails: List[EmailPayload]
+    provider_id: Optional[int] = None
 
 @router.post("/analyze-emails", status_code=status.HTTP_200_OK)
-async def analyze_emails_endpoint(payload: EmailAnalysisRequest):
+async def analyze_emails_endpoint(payload: EmailAnalysisRequest, db: Session = Depends(get_db)):
     """
-    Receives list of Gmail messages and parses them via Gemini API.
+    Receives list of Gmail messages and parses them via configured LLM provider.
     """
-    # Convert Pydantic objects to dicts for controller/service
+    # 1. Resolve LLM provider from DB
+    provider = None
+    if payload.provider_id:
+        provider = db.query(LLMProviderModel).filter(LLMProviderModel.id == payload.provider_id).first()
+    if not provider:
+        provider = db.query(LLMProviderModel).filter(LLMProviderModel.is_default == True).first()
+    if not provider:
+        provider = db.query(LLMProviderModel).first()
+
+    if not provider:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Kein KI-Modell konfiguriert. Bitte richten Sie in den Einstellungen unter 'KI-Modelle' ein lokales (Ollama) oder Cloud-Modell ein."
+        )
+
+    llm_config = LLMConfig(
+        id=provider.id,
+        name=provider.name,
+        provider_type=provider.provider_type, # type: ignore
+        model_name=provider.model_name,
+        api_key=provider.api_key,
+        base_url=provider.base_url,
+        is_default=provider.is_default
+    )
+
     emails_dict = [email.model_dump() for email in payload.emails]
     num_emails = len(emails_dict)
     
@@ -39,61 +67,39 @@ async def analyze_emails_endpoint(payload: EmailAnalysisRequest):
         for e in emails_dict
     )
     
-    logger.info(f"📧 Starting email sync. Received {num_emails} emails for analysis (Total text size: {total_chars} characters).")
+    logger.info(f"📧 Starting email sync using {llm_config.name} ({llm_config.model_name}). Received {num_emails} emails ({total_chars} chars).")
     
     try:
-        logger.info(f"Sending {num_emails} emails to Gemini API for parsing and classification...")
-        results = await service_analyze_emails(emails_dict)
-        
+        results = await service_analyze_emails(emails_dict, llm_config)
         num_job_related = sum(1 for r in results if r.get('isJobRelated'))
-        logger.info(f"Successfully analyzed {num_emails} emails. Found {num_job_related} job-related emails.")
-        
-        for idx, r in enumerate(results):
-            email_id = r.get('emailId')
-            # Find matching original email
-            orig = next((e for e in emails_dict if e.get('id') == email_id), {})
-            subject = orig.get('subject', 'N/A')
-            snippet = orig.get('snippet', 'N/A')
-            
-            # Clean snippet for single line log representation
-            snippet_clean = snippet.replace('\n', ' ').replace('\r', ' ').strip()
-            if len(snippet_clean) > 100:
-                snippet_clean = snippet_clean[:100] + "..."
-                
-            if r.get('isJobRelated'):
-                logger.info(
-                    f"   - Email #{idx + 1} ({email_id}):\n"
-                    f"     Original -> Subject: '{subject}' | Snippet: '{snippet_clean}'\n"
-                    f"     Analyzed -> [Job-Related] Company='{r.get('company')}', Role='{r.get('role')}', Stage='{r.get('stage')}', Status='{r.get('status')}', Classification='{r.get('classification')}'"
-                )
-            else:
-                logger.info(
-                    f"   - Email #{idx + 1} ({email_id}):\n"
-                    f"     Original -> Subject: '{subject}' | Snippet: '{snippet_clean}'\n"
-                    f"     Analyzed -> [Not Related] spam/generic"
-                )
-                
+        logger.info(f"Successfully analyzed {num_emails} emails using {llm_config.model_name}. Found {num_job_related} job-related emails.")
         return {"results": results}
     except Exception as e:
-        error_msg = str(e)
-        logger.error(f"Email analysis failed: {error_msg}", exc_info=True)
+        import re
+        raw_error = str(e)
+        # Sanitize any sensitive tokens or keys before logging or returning
+        error_msg = re.sub(r'key=[A-Za-z0-9_\-\.]+', 'key=[REDACTED]', raw_error)
+        error_msg = re.sub(r'AIza[0-9A-Za-z-_]{35}', '[REDACTED]', error_msg)
+        error_msg = re.sub(r'AQ\.[0-9A-Za-z-_]{20,}', '[REDACTED]', error_msg)
+
+        logger.error(f"Email analysis failed: {error_msg}")
         
         if "rate limit" in error_msg.lower() or "429" in error_msg:
             raise HTTPException(
                 status_code=429,
-                detail="Die Gemini-API ist derzeit überlastet (Rate-Limit überschritten). Bitte versuchen Sie es in einer Minute erneut."
+                detail="Das KI-Modell ist derzeit überlastet (Rate-Limit überschritten). Bitte versuchen Sie es in Kürze erneut."
             )
         elif "503" in error_msg:
             raise HTTPException(
                 status_code=503,
-                detail="Die Gemini-API ist vorübergehend nicht erreichbar (Service Unavailable / Status 503). Bitte versuchen Sie es gleich noch einmal."
+                detail="Der KI-Dienst ist vorübergehend nicht erreichbar. Bitte überprüfen Sie den Dienststatus."
             )
         elif "timeout" in error_msg.lower():
             raise HTTPException(
                 status_code=504,
-                detail="Zeitüberschreitung bei der Kommunikation mit der Gemini-API."
+                detail="Zeitüberschreitung bei der Kommunikation mit dem KI-Modell."
             )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gemini email analysis failed: {error_msg}"
+            detail=f"E-Mail-Analyse fehlgeschlagen: {error_msg}"
         )

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Briefcase, MapPin, ExternalLink, Loader2, Sparkles, Check } from "lucide-react";
 import { JobSearchResultItem } from "../hooks/useJobSearch";
 import { SaveJobModal } from "./Modals/SaveJobModal";
+import { sanitizeExternalUrl } from "../utils/urlUtils";
 
 interface JobSearchResultsProps {
   results: JobSearchResultItem[];
@@ -129,7 +130,7 @@ export const JobSearchResults: React.FC<JobSearchResultsProps> = ({
                         </span>
                       )}
                       <a
-                        href={job.url}
+                        href={sanitizeExternalUrl(job.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="h-9 w-9 bg-slate-900 hover:bg-blue-900/20 border border-slate-800/80 hover:border-blue-500/40 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-300 transition-all duration-300"

@@ -12,6 +12,7 @@ import {
   getLocalDateString,
 } from "../utils/matchingLogic";
 import { useGlobalTask } from "../context/GlobalTaskContext";
+import { useLLM } from "../context/LLMContext";
 
 export interface UseGmailSyncProps {
   user: User | null;
@@ -56,6 +57,7 @@ export const useGmailSync = ({
     emailUpdates,
     setEmailUpdates,
   } = useGlobalTask();
+  const { activeProvider, providers } = useLLM();
   const [syncingEmailId, setSyncingEmailId] = useState<string | null>(null);
   
   // UI states for expanding elements
@@ -124,10 +126,36 @@ export const useGmailSync = ({
       }
     }
 
+    if (!activeProvider && providers.length === 0) {
+      triggerToast("error", "Bitte konfigurieren Sie zuerst ein KI-Modell in den Einstellungen (unter 'KI-Modelle').");
+      return;
+    }
+
     startAITask("Gmail-Postfach durchsuchen...", "Verbindung mit Gmail wird hergestellt...");
     let progressInterval: any;
     try {
-      const messages = await searchGmailMessages(currentToken!, gmailQuery, 10);
+      let messages: any[] = [];
+      try {
+        messages = await searchGmailMessages(currentToken!, gmailQuery, 10);
+      } catch (searchErr: any) {
+        const errMsg = searchErr?.message || "";
+        if (
+          errMsg.includes("401") ||
+          errMsg.toLowerCase().includes("invalid credentials") ||
+          errMsg.toLowerCase().includes("unauthenticated")
+        ) {
+          updateAITask(10, "Sitzung erneuern...", "Google-Sitzung abgelaufen. Bitte im Popup kurz bestätigen...");
+          const authResult = await googleSignIn();
+          if (authResult?.accessToken) {
+            currentToken = authResult.accessToken;
+            messages = await searchGmailMessages(currentToken, gmailQuery, 10);
+          } else {
+            throw new Error("Google-Authentifizierung abgelaufen. Bitte erneut anmelden.");
+          }
+        } else {
+          throw searchErr;
+        }
+      }
       const totalEmails = messages.length;
 
       if (totalEmails === 0) {
@@ -140,12 +168,13 @@ export const useGmailSync = ({
         return;
       }
 
-      updateAITask(15, "E-Mails analysieren...", `Gefunden: ${totalEmails} E-Mails. Analysiere via Gemini...`);
+      updateAITask(15, "E-Mails analysieren...", `Gefunden: ${totalEmails} E-Mails. Analysiere via ${activeProvider?.name || "KI"}...`);
       const numChunks = Math.ceil(totalEmails / 5);
 
       // Start progress simulation interval
       let currentProgress = 15;
-      const estSeconds = Math.max(15, numChunks * 20); // ca 20s per chunk
+      const isLocal = activeProvider?.provider_type === "ollama";
+      const estSeconds = isLocal ? Math.max(90, numChunks * 120) : Math.max(15, numChunks * 20);
       const intervalMs = 300;
       const totalSteps = (estSeconds * 1000) / intervalMs;
       const stepIncrement = (95 - 15) / totalSteps;
@@ -172,19 +201,22 @@ export const useGmailSync = ({
       }, intervalMs);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes timeout
+      const timeoutId = setTimeout(() => controller.abort(), 900000); // 15 minutes timeout for local/cloud models
 
       let response: Response;
       try {
         response = await fetch("/api/analyze-emails", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ emails: messages }),
+          body: JSON.stringify({
+            emails: messages,
+            provider_id: activeProvider?.id,
+          }),
           signal: controller.signal,
         });
       } catch (fetchErr: any) {
         if (fetchErr.name === "AbortError") {
-          throw new Error("Zeitüberschreitung bei der E-Mail-Analyse (Limit: 10 Min.).");
+          throw new Error("Zeitüberschreitung bei der E-Mail-Analyse (Limit: 15 Min.).");
         }
         throw fetchErr;
       } finally {
@@ -268,8 +300,7 @@ export const useGmailSync = ({
         );
         if (!response.ok) throw new Error("Failed to update stage/status");
         const updatedApp = await response.json();
-        const updated = applications.map((app) => (app.id === match.id ? updatedApp : app));
-        setApplications(updated);
+        setApplications((prev) => prev.map((app) => (app.id === match.id ? updatedApp : app)));
       } else {
         const newApp = {
           company: update.company,
@@ -289,7 +320,7 @@ export const useGmailSync = ({
         });
         if (!response.ok) throw new Error("Failed to create application");
         const savedApp = await response.json();
-        setApplications([savedApp, ...applications]);
+        setApplications((prev) => [savedApp, ...prev]);
         if (update.stage === "Interview" && update.status === "Open") {
           onInterviewOpenTrigger?.(savedApp.id);
         }
@@ -299,8 +330,7 @@ export const useGmailSync = ({
           onInterviewOpenTrigger?.(match.id);
         }
       }
-      update.synced = true;
-      setEmailUpdates([...emailUpdates]);
+      setEmailUpdates((prev) => prev.map((up) => up.emailId === update.emailId ? { ...up, synced: true } : up));
       triggerToast("success", "Erfolgreich übernommen.");
     } catch (err: any) {
       triggerToast("error", "Fehler beim Übernehmen.");

@@ -1,12 +1,16 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { User } from "firebase/auth";
-import { Mail, RefreshCw, Cpu, LogOut, Check, Sparkles, Settings, ShieldCheck, Database, Download, Upload, AlertTriangle } from "lucide-react";
+import { Mail, RefreshCw, Cpu, LogOut, Check, Sparkles, Settings, ShieldCheck, Database, Download, Upload, AlertTriangle, Bot } from "lucide-react";
 
 import { useGlobalTask } from "../context/GlobalTaskContext";
+import { useLLM } from "../context/LLMContext";
+import { LLMConfigSection } from "../components/settings/LLMConfigSection";
 
-type TabType = "connections" | "privacy" | "backup" | "system";
+type TabType = "connections" | "models" | "privacy" | "backup" | "system";
 
 export const SettingsPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     user,
     token,
@@ -15,7 +19,22 @@ export const SettingsPage: React.FC = () => {
     handleLogout: onLogout,
     triggerToast,
   } = useGlobalTask();
-  const [activeTab, setActiveTab] = useState<TabType>("connections");
+  const { activeProvider } = useLLM();
+  const initialTab = (searchParams.get("tab") as TabType) || "connections";
+  const [activeTab, setActiveTabState] = useState<TabType>(initialTab);
+
+  const setActiveTab = (tab: TabType) => {
+    setActiveTabState(tab);
+    setSearchParams({ tab });
+  };
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab") as TabType;
+    if (tabParam && ["connections", "models", "privacy", "backup", "system"].includes(tabParam)) {
+      setActiveTabState(tabParam);
+    }
+  }, [searchParams]);
+
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,10 +104,10 @@ export const SettingsPage: React.FC = () => {
       </header>
 
       {/* Horizontal Tabs Selection */}
-      <div className="flex border-b border-white/5 pb-2 gap-3">
+      <div className="flex border-b border-white/5 pb-2 gap-3 overflow-x-auto">
         <button
           onClick={() => setActiveTab("connections")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition shrink-0 ${
             activeTab === "connections"
               ? "bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold"
               : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
@@ -98,8 +117,19 @@ export const SettingsPage: React.FC = () => {
           <span>Verbindungen</span>
         </button>
         <button
+          onClick={() => setActiveTab("models")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition shrink-0 ${
+            activeTab === "models"
+              ? "bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold"
+              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
+          }`}
+        >
+          <Bot className="h-3.5 w-3.5" />
+          <span>KI-Modelle</span>
+        </button>
+        <button
           onClick={() => setActiveTab("privacy")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition shrink-0 ${
             activeTab === "privacy"
               ? "bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold"
               : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
@@ -110,7 +140,7 @@ export const SettingsPage: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab("backup")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition shrink-0 ${
             activeTab === "backup"
               ? "bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold"
               : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
@@ -121,7 +151,7 @@ export const SettingsPage: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab("system")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition shrink-0 ${
             activeTab === "system"
               ? "bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold"
               : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
@@ -135,6 +165,8 @@ export const SettingsPage: React.FC = () => {
 
       {/* Tab Content Rendering */}
       <div className="min-h-[40vh]">
+        {activeTab === "models" && <LLMConfigSection />}
+
         {activeTab === "connections" && (
           <section className="bg-slate-900/40 border border-white/5 rounded-2xl p-6 backdrop-blur-sm shadow-xl flex flex-col justify-between max-w-2xl animate-fadeIn">
             <div className="space-y-5">
@@ -347,10 +379,16 @@ export const SettingsPage: React.FC = () => {
                 <div className="font-bold text-slate-300">SQLite (Lokal)</div>
               </div>
               <div className="bg-slate-950/30 border border-white/5 rounded-xl p-3.5 space-y-1">
-                <span className="text-[10px] text-slate-500 font-black uppercase tracking-wider">KI-Modell</span>
-                <div className="font-bold text-slate-300 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3 text-indigo-400 shrink-0" />
-                  <span>Gemini 3.5 Flash</span>
+                <span className="text-[10px] text-slate-500 font-black uppercase tracking-wider">Aktives KI-Modell</span>
+                <div className="font-bold text-slate-300 flex items-center gap-1.5 truncate">
+                  {activeProvider ? (
+                    <>
+                      <span>{activeProvider.provider_type === "ollama" ? "🦙" : activeProvider.provider_type === "gemini" ? "✨" : "🤖"}</span>
+                      <span className="truncate">{activeProvider.name}</span>
+                    </>
+                  ) : (
+                    <span className="text-amber-400 text-[11px]">Kein Modell aktiv</span>
+                  )}
                 </div>
               </div>
             </div>

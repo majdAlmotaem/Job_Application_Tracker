@@ -10,11 +10,14 @@ import { JobSearchPage } from "./pages/JobSearchPage";
 import { CVMakerPage } from "./pages/CVMakerPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { GlobalTaskProvider, useGlobalTask } from "./context/GlobalTaskContext";
+import { LLMProvider } from "./context/LLMContext";
 
 export default function App() {
   return (
     <GlobalTaskProvider>
-      <AppContent />
+      <LLMProvider>
+        <AppContent />
+      </LLMProvider>
     </GlobalTaskProvider>
   );
 }

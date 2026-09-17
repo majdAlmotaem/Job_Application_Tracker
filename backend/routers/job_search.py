@@ -1,16 +1,38 @@
 import io
 import logging
 import PyPDF2
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from sqlalchemy.orm import Session
+from backend.database import get_db
+from backend.models.llm_provider import LLMProviderModel
 from backend.schemas.job_search import CVExtractionResult, JobSearchRequest, JobSearchResponse
-from backend.services.gemini import extract_cv_info, search_live_jobs
+from backend.services.llm import extract_cv_info, search_live_jobs, LLMConfig
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/jobs", tags=["job_search"])
 
+def _get_active_llm_config(db: Session) -> LLMConfig:
+    provider = db.query(LLMProviderModel).filter(LLMProviderModel.is_default == True).first()
+    if not provider:
+        provider = db.query(LLMProviderModel).first()
+    if not provider:
+        raise HTTPException(
+            status_code=400,
+            detail="Kein KI-Modell konfiguriert. Bitte in den Einstellungen unter 'KI-Modelle' einrichten."
+        )
+    return LLMConfig(
+        id=provider.id,
+        name=provider.name,
+        provider_type=provider.provider_type, # type: ignore
+        model_name=provider.model_name,
+        api_key=provider.api_key,
+        base_url=provider.base_url,
+        is_default=provider.is_default
+    )
+
 @router.post("/extract-cv", response_model=CVExtractionResult)
-async def extract_cv(file: UploadFile = File(...)):
+async def extract_cv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
         
@@ -33,10 +55,11 @@ async def extract_cv(file: UploadFile = File(...)):
             
         logger.info(f"Extracted {len(text)} characters of text from '{file.filename}' (Pages: {len(reader.pages)})")
         
-        logger.info(f"Sending extracted text of '{file.filename}' to Gemini API for parsing...")
-        extracted_data = await extract_cv_info(text)
+        config = _get_active_llm_config(db)
+        logger.info(f"Sending extracted text of '{file.filename}' to LLM ({config.model_name}) for parsing...")
+        extracted_data = await extract_cv_info(text, config)
         
-        logger.info(f"Successfully parsed CV '{file.filename}' via Gemini API. Extracted criteria: {extracted_data}")
+        logger.info(f"Successfully parsed CV '{file.filename}'. Extracted criteria: {extracted_data}")
         return extracted_data
         
     except HTTPException as he:
@@ -65,34 +88,30 @@ async def extract_cv(file: UploadFile = File(...)):
         )
 
 @router.post("/search", response_model=JobSearchResponse)
-async def search_jobs(request: JobSearchRequest):
+async def search_jobs(request: JobSearchRequest, db: Session = Depends(get_db)):
     logger.info(f"Received job search request: {request}")
     try:
-        criteria = request.dict()
-        results = await search_live_jobs(criteria)
+        config = _get_active_llm_config(db)
+        criteria = request.model_dump()
+        results = await search_live_jobs(criteria, config)
         logger.info(f"Successfully retrieved {len(results)} live job search results")
         return {"results": results}
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"Error during live job search: {error_msg}", exc_info=True)
+        logger.error(f"Error during live job search: {error_msg}")
         if "rate limit" in error_msg.lower() or "429" in error_msg:
             raise HTTPException(
                 status_code=429,
-                detail="Die Gemini-API ist derzeit überlastet (Rate-Limit überschritten). Bitte versuchen Sie es in einer Minute erneut."
-            )
-        elif "503" in error_msg:
-            raise HTTPException(
-                status_code=503,
-                detail="Die Gemini-API ist vorübergehend nicht erreichbar (Service Unavailable / Status 503). Bitte versuchen Sie es gleich noch einmal."
+                detail="Das KI-Modell ist derzeit überlastet (Rate-Limit überschritten). Bitte versuchen Sie es in Kürze erneut."
             )
         elif "timeout" in error_msg.lower():
             raise HTTPException(
                 status_code=504,
-                detail="Zeitüberschreitung bei der Kommunikation mit der Gemini-API."
+                detail="Zeitüberschreitung bei der Kommunikation mit dem KI-Modell."
             )
         raise HTTPException(
             status_code=500,
-            detail=f"Fehler bei der Live-Jobsuche: {error_msg}"
+            detail=f"Fehler bei der Jobsuche: {error_msg}"
         )
 
 
@@ -105,14 +124,13 @@ from typing import List
 
 searches_router = APIRouter(prefix="/api/searches", tags=["saved_searches"])
 
-from sqlalchemy import text
-
 @searches_router.get("", response_model=List[SavedSearchResponse])
 def get_searches(db: Session = Depends(get_db)):
     try:
-        # Check if saved_searches table exists in SQLite database yet
-        result = db.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='saved_searches'"))
-        if not result.fetchone():
+        # Check if table exists
+        from sqlalchemy import inspect
+        inspector = inspect(db.bind)
+        if "saved_searches" not in inspector.get_table_names():
             logger.info("Table 'saved_searches' does not exist in database yet.")
             return []
         return db.query(SavedSearchModel).order_by(SavedSearchModel.id.asc()).all()
@@ -127,10 +145,15 @@ def create_search(search: SavedSearchBase, db: Session = Depends(get_db)):
         criteria=search.criteria,
         results=search.results
     )
-    db.add(db_search)
-    db.commit()
-    db.refresh(db_search)
-    return db_search
+    try:
+        db.add(db_search)
+        db.commit()
+        db.refresh(db_search)
+        return db_search
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to create saved search: {e}")
+        raise HTTPException(status_code=500, detail="Fehler beim Speichern der Suche.")
 
 @searches_router.put("/{search_id}", response_model=SavedSearchResponse)
 def update_search(search_id: int, search: SavedSearchUpdate, db: Session = Depends(get_db)):
@@ -145,9 +168,14 @@ def update_search(search_id: int, search: SavedSearchUpdate, db: Session = Depen
     if search.results is not None:
         db_search.results = search.results
         
-    db.commit()
-    db.refresh(db_search)
-    return db_search
+    try:
+        db.commit()
+        db.refresh(db_search)
+        return db_search
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update saved search: {e}")
+        raise HTTPException(status_code=500, detail="Fehler beim Aktualisieren der Suche.")
 
 @searches_router.delete("/{search_id}")
 def delete_search(search_id: int, db: Session = Depends(get_db)):
@@ -155,8 +183,11 @@ def delete_search(search_id: int, db: Session = Depends(get_db)):
     if not db_search:
         raise HTTPException(status_code=404, detail="Saved search not found")
     
-    db.delete(db_search)
-    db.commit()
-    return {"status": "success", "message": "Search deleted successfully"}
-
-
+    try:
+        db.delete(db_search)
+        db.commit()
+        return {"status": "success", "message": "Search deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete saved search: {e}")
+        raise HTTPException(status_code=500, detail="Fehler beim Löschen der Suche.")

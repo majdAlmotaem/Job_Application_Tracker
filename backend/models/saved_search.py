@@ -1,5 +1,5 @@
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, JSON, DateTime
-from datetime import datetime
 from backend.database import Base
 
 class SavedSearchModel(Base):
@@ -9,4 +9,4 @@ class SavedSearchModel(Base):
     tab_name = Column(String, nullable=False)
     criteria = Column(JSON, nullable=False)
     results = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

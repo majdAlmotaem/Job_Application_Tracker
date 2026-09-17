@@ -1,5 +1,6 @@
 import React from "react";
-import { Search, ExternalLink } from "lucide-react";
+import { Search, ExternalLink, Briefcase } from "lucide-react";
+import { sanitizeExternalUrl } from "../utils/urlUtils";
 import { SavedSearch } from "../hooks/useSavedSearches";
 
 interface LastSearchResultsCardProps {
@@ -53,7 +54,7 @@ export const LastSearchResultsCard: React.FC<LastSearchResultsCardProps> = ({
             return (
               <a
                 key={idx}
-                href={job.url}
+                href={sanitizeExternalUrl(job.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-slate-950/40 border border-white/5 hover:border-purple-500/20 rounded-xl p-3 flex items-center justify-between gap-3 group/item transition no-underline block text-left"

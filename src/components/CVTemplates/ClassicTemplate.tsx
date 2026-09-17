@@ -1,5 +1,6 @@
 import React from "react";
 import { CVData, CVConfig } from "../../types/cv";
+import { sanitizeExternalUrl } from "../../utils/urlUtils";
 
 interface ClassicTemplateProps {
   data: CVData;
@@ -119,7 +120,7 @@ export const ClassicTemplate: React.FC<ClassicTemplateProps> = ({ data, config }
           {personalDetails.website && (
             <div className="flex items-center gap-1.5">
               <span>🌐</span>
-              <a href={personalDetails.website} target="_blank" rel="noopener noreferrer" className="hover:underline text-slate-600 font-semibold no-underline">
+              <a href={sanitizeExternalUrl(personalDetails.website)} target="_blank" rel="noopener noreferrer" className="hover:underline text-slate-600 font-semibold no-underline">
                 {personalDetails.website.replace(/^https?:\/\//, "")}
               </a>
             </div>

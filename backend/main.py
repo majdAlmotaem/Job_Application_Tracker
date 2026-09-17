@@ -12,6 +12,7 @@ load_dotenv()
 from backend.database import Base, engine
 from backend.models.job_application import JobApplicationModel
 from backend.models.saved_search import SavedSearchModel
+from backend.models.llm_provider import LLMProviderModel
 
 # Prevent job_applications table from being created automatically on startup
 if hasattr(JobApplicationModel, "__table__"):
@@ -25,37 +26,32 @@ Base.metadata.create_all(bind=engine)
 # Dynamically run schema migration to add source_file, interview_date, and stage columns if they don't exist
 from sqlalchemy import inspect, text
 inspector = inspect(engine)
+EXCLUDED_TABLES = {"saved_searches", "llm_providers"}
 for table_name in inspector.get_table_names():
-    if not table_name.startswith("sqlite_"):
+    if not table_name.startswith("sqlite_") and table_name not in EXCLUDED_TABLES:
         columns = [col["name"] for col in inspector.get_columns(table_name)]
         if "source_file" not in columns and table_name == "job_applications":
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE job_applications ADD COLUMN source_file VARCHAR DEFAULT 'Default'"))
-        if "interview_date" not in columns and table_name != "saved_searches":
+        if "interview_date" not in columns:
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN interview_date TEXT'))
-        if "interview_time" not in columns and table_name != "saved_searches":
+        if "interview_time" not in columns:
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN interview_time TEXT'))
-        if "interview_note" not in columns and table_name != "saved_searches":
+        if "interview_note" not in columns:
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN interview_note TEXT'))
         # Migration: Add `stage` column and convert legacy single-status values
-        if "stage" not in columns and table_name != "saved_searches":
+        if "stage" not in columns and "status" in columns:
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN stage VARCHAR DEFAULT \'Applied\''))
                 # Migrate legacy status values into the new two-field model:
-                # Old "Interview" → stage=Interview, status=Open
                 conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Interview\', status = \'Open\' WHERE status = \'Interview\''))
-                # Old "Offer" → stage=Offer, status=Open
                 conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Offer\', status = \'Open\' WHERE status = \'Offer\''))
-                # Old "Rejected" → stage=Applied (conservative default), status=Rejected
                 conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Applied\', status = \'Rejected\' WHERE status = \'Rejected\''))
-                # Old "Applied" → stage=Applied, status=Open
                 conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Applied\', status = \'Open\' WHERE status = \'Applied\''))
-                # Old "Received" → stage=Applied, status=Open
                 conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Applied\', status = \'Open\' WHERE status = \'Received\''))
-                # Old "Unknown" → stage=Applied, status=Open
                 conn.execute(text(f'UPDATE "{table_name}" SET stage = \'Applied\', status = \'Open\' WHERE status = \'Unknown\''))
 
 
@@ -68,6 +64,7 @@ from backend.routers.csv import router as csv_router
 from backend.routers.emails import router as emails_router
 from backend.routers.job_search import router as job_search_router, searches_router
 from backend.routers.backup import router as backup_router
+from backend.routers.llm import router as llm_router
 
 app = FastAPI(
     title="Job Application Tracker API",
@@ -111,6 +108,7 @@ app.include_router(emails_router)
 app.include_router(job_search_router)
 app.include_router(searches_router)
 app.include_router(backup_router)
+app.include_router(llm_router)
 
 # Production Static File Serving (Vite build folder: dist)
 dist_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../dist"))
